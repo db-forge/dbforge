@@ -65,12 +65,13 @@ export function useIsClient() {
 
 /** Wallet connection state from wagmi, normalized for the UI. */
 export function useWalletStatus() {
-  const { address, isConnected, status, chainId: connectedChainId } = useConnection();
+  const { address, isConnected, status, chainId: connectedChainId, connector } = useConnection();
   const chainId = useChainId();
   const balance = useBalance({ address, chainId: monadTestnet.id, query: { enabled: !!address } });
   return {
     address,
     isConnected,
+    connectorName: connector?.name,
     isConnecting: status === "connecting" || status === "reconnecting",
     wrongNetwork: isConnected && (connectedChainId ?? chainId) !== monadTestnet.id,
     onchainBalance: balance.data ? Number(balance.data.value) / 1e18 : null,

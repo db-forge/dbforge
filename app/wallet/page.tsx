@@ -4,27 +4,26 @@ import { AlertTriangle, Copy, ExternalLink, Receipt, Wallet } from "lucide-react
 import { useConnectWallet, useSwitchToMonad } from "@/components/ConnectWallet";
 import { EmptyState } from "@/components/EmptyState";
 import { MonAmount } from "@/components/MonAmount";
-import { StatusBadge } from "@/components/StatusBadge";
+import { NetworkPill } from "@/components/NetworkPill";
 import { AppShell } from "@/components/shell/AppShell";
 import { useToast } from "@/components/Toaster";
-import { TxHash } from "@/components/TxHash";
 import { Button, LinkButton } from "@/components/ui/button";
-import { Card, MonoLabel, SectionTitle, Skeleton } from "@/components/ui/card";
+import { Card, SectionTitle, Skeleton } from "@/components/ui/card";
 import { getWallet } from "@/lib/frontend/api";
 import { useApi, useIsClient, useWalletStatus } from "@/lib/frontend/hooks";
-import { addressUrl, formatMon, timeAgo } from "@/lib/frontend/utils";
+import { addressUrl, formatMon, shortAddr, timeAgo, txUrl } from "@/lib/frontend/utils";
 
 export default function WalletPage() {
   const isClient = useIsClient();
   const toast = useToast();
-  const { address, isConnected, isConnecting, wrongNetwork, onchainBalance } = useWalletStatus();
+  const { address, isConnected, isConnecting, wrongNetwork, onchainBalance, connectorName } = useWalletStatus();
   const { connectWallet, isPending } = useConnectWallet();
   const { switchToMonad, isPending: switching } = useSwitchToMonad();
   const { data: wallet, loading } = useApi(getWallet);
 
   if (!isClient || isConnecting) {
     return (
-      <AppShell title="Cüzdan">
+      <AppShell title="Cüzdan" actions={<NetworkPill />}>
         <Skeleton className="h-48 rounded-2xl" />
       </AppShell>
     );
@@ -32,8 +31,8 @@ export default function WalletPage() {
 
   if (!isConnected) {
     return (
-      <AppShell title="Cüzdan">
-        <Card className="p-8 text-center">
+      <AppShell title="Cüzdan" actions={<NetworkPill />}>
+        <Card className="mt-2 p-8 text-center">
           <div className="mx-auto grid size-14 place-items-center rounded-full border-[1.5px] border-ink bg-ice">
             <Wallet className="size-6 text-primary" />
           </div>
@@ -41,7 +40,7 @@ export default function WalletPage() {
           <p className="mx-auto mt-1 max-w-sm text-sm text-ink/70">
             Kabul edilen her video için ödemeler Monad Testnet üzerinden doğrudan bu cüzdana gönderilir.
           </p>
-          <Button size="lg" className="mt-6" onClick={connectWallet} disabled={isPending}>
+          <Button size="lg" className="mt-6 h-14 w-full max-w-xs text-base font-bold" onClick={connectWallet} disabled={isPending}>
             <Wallet className="size-5" /> {isPending ? "Bağlanıyor…" : "MetaMask'ı bağla"}
           </Button>
           <p className="mt-3 font-mono text-[11px] text-ink/50">Monad Testnet · chainId 10143 · MON</p>
@@ -51,7 +50,7 @@ export default function WalletPage() {
   }
 
   return (
-    <AppShell title="Cüzdan">
+    <AppShell title="Cüzdan" actions={<NetworkPill />}>
       <div className="space-y-4">
         {wrongNetwork && (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border-[1.5px] border-warning bg-amber-50 p-4">
@@ -69,12 +68,10 @@ export default function WalletPage() {
         )}
 
         <Card className="p-5 sm:p-6">
-          <div className="flex items-center justify-between gap-2">
-            <MonoLabel>Adres</MonoLabel>
-            <StatusBadge status="network" />
-          </div>
-          <div className="mt-1 flex items-center gap-2">
-            <p className="min-w-0 font-mono text-sm break-all">{address}</p>
+          <div className="flex items-center gap-1">
+            <p className="min-w-0 truncate font-mono text-sm text-ink/70">
+              {shortAddr(address, 4, 4)} · {connectorName ?? "Cüzdan"}
+            </p>
             <button
               aria-label="Adresi kopyala"
               onClick={() => {
@@ -83,7 +80,7 @@ export default function WalletPage() {
               }}
               className="grid size-8 shrink-0 place-items-center rounded-full hover:bg-ice"
             >
-              <Copy className="size-4" />
+              <Copy className="size-3.5" />
             </button>
             <a
               href={addressUrl(address ?? "")}
@@ -92,71 +89,77 @@ export default function WalletPage() {
               aria-label="Explorer'da aç"
               className="grid size-8 shrink-0 place-items-center rounded-full hover:bg-ice"
             >
-              <ExternalLink className="size-4" />
+              <ExternalLink className="size-3.5" />
             </a>
           </div>
 
-          <div className="mt-6">
-            <MonoLabel>Bakiye</MonoLabel>
-            {loading && !wallet ? (
-              <Skeleton className="mt-1 h-12 w-48" />
-            ) : (
-              <MonAmount value={wallet?.balanceMon ?? 0} size="xl" className="block" />
-            )}
-            <p className="mt-1 font-mono text-xs text-ink/55">
-              Toplam kazanç {formatMon(wallet?.earnedMon ?? 0)} MON
-              {onchainBalance !== null && ` · zincir bakiyesi ${formatMon(onchainBalance, 4)} MON`}
-            </p>
+          {loading && !wallet ? (
+            <Skeleton className="mt-2 h-14 w-48" />
+          ) : (
+            <MonAmount value={wallet?.balanceMon ?? 0} size="xl" className="mt-1 block text-6xl" />
+          )}
+          <p className="mt-2 text-ink/75">
+            Bu hafta <b className="text-primary">+{formatMon(wallet?.earnedWeekMon ?? 0)} MON</b> kazandın
+          </p>
+          {onchainBalance !== null && (
+            <p className="mt-1 font-mono text-[11px] text-ink/50">zincir bakiyesi {formatMon(onchainBalance, 4)} MON</p>
+          )}
+
+          <div className="mt-5 grid grid-cols-3 gap-2.5">
+            {[
+              { label: "gönderim", value: wallet?.submitted, className: "" },
+              { label: "kabul", value: wallet?.accepted, className: "text-success" },
+              { label: "red", value: wallet?.rejected, className: "text-danger" },
+            ].map((s) => (
+              <div key={s.label} className="rounded-xl bg-ice px-2 py-3 text-center">
+                <p className={`text-2xl font-bold tabular-nums ${s.className}`}>{s.value ?? "–"}</p>
+                <p className="text-xs text-ink/65">{s.label}</p>
+              </div>
+            ))}
           </div>
         </Card>
 
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: "Gönderim", value: wallet?.submitted, className: "" },
-            { label: "Kabul", value: wallet?.accepted, className: "text-success" },
-            { label: "Red", value: wallet?.rejected, className: "text-danger" },
-          ].map((s) => (
-            <Card key={s.label} className="p-4">
-              <MonoLabel>{s.label}</MonoLabel>
-              <p className={`text-3xl font-bold tabular-nums ${s.className}`}>{s.value ?? "–"}</p>
-            </Card>
-          ))}
-        </div>
-
-        <Card className="p-5">
-          <div className="mb-2 flex items-center justify-between">
+        <div>
+          <div className="mb-2 flex items-center justify-between px-1">
             <SectionTitle>Son ödemeler</SectionTitle>
             {!!wallet?.reviewing && (
               <span className="font-mono text-xs text-warning">{wallet.reviewing} ödeme bekliyor</span>
             )}
           </div>
           {loading && !wallet ? (
-            <Skeleton className="h-32" />
+            <Skeleton className="h-32 rounded-2xl" />
           ) : !wallet?.payments.length ? (
             <EmptyState
               icon={Receipt}
               title="Henüz ödeme yok"
               description="İlk videon kabul edildiğinde ödeme burada görünür."
               action={<LinkButton href="/explore">Görevlere göz at</LinkButton>}
-              className="border-0 py-8"
             />
           ) : (
-            <ul className="divide-y divide-sky">
-              {wallet.payments.map((p) => (
-                <li key={p.hash} className="flex items-center justify-between gap-3 py-3">
-                  <div className="min-w-0">
-                    <p className="truncate font-medium">{p.missionTitle}</p>
-                    <div className="flex items-center gap-2">
-                      <TxHash hash={p.hash} />
-                      <span className="font-mono text-[11px] text-ink/50">{timeAgo(p.createdAt)}</span>
+            <Card>
+              <ul className="divide-y divide-sky">
+                {wallet.payments.map((p) => (
+                  <li key={p.hash} className="flex items-center justify-between gap-3 px-4 py-3.5">
+                    <div className="min-w-0">
+                      <p className="truncate font-bold">{p.missionTitle}</p>
+                      <a
+                        href={txUrl(p.hash)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-mono text-xs text-primary underline underline-offset-2"
+                      >
+                        tx {shortAddr(p.hash, 4, 2)} · {timeAgo(p.createdAt)}
+                      </a>
                     </div>
-                  </div>
-                  <MonAmount value={p.amountMon} sign size="md" className="shrink-0" />
-                </li>
-              ))}
-            </ul>
+                    <span className="shrink-0 text-lg font-bold text-primary tabular-nums">
+                      +{formatMon(p.amountMon)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
           )}
-        </Card>
+        </div>
       </div>
     </AppShell>
   );
