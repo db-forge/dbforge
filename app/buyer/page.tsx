@@ -16,7 +16,7 @@ export default function BuyerDashboardPage() {
   const { data: missions, loading } = useApi(getBuyerMissions);
 
   return (
-    <BuyerShell>
+    <BuyerShell crumb="Görevlerim">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <MonoLabel>Şirket paneli</MonoLabel>
