@@ -1,11 +1,11 @@
 "use client";
 
-/* eslint-disable @next/next/no-img-element */
-import { Bookmark, CheckCircle2, Clock, FileQuestion, Play, Users, Video } from "lucide-react";
+import { Bookmark, Check, ChevronLeft, FileQuestion, Play, Video } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { Avatar } from "@/components/Avatar";
+import { CoverImage } from "@/components/CoverImage";
 import { EmptyState } from "@/components/EmptyState";
 import { MonAmount } from "@/components/MonAmount";
 import { ProgressBar } from "@/components/ProgressBar";
@@ -13,11 +13,11 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { useToast } from "@/components/Toaster";
 import { AppShell } from "@/components/shell/AppShell";
 import { Button, LinkButton } from "@/components/ui/button";
-import { Card, MonoLabel, SectionTitle, Skeleton } from "@/components/ui/card";
+import { Card, MonoLabel, Skeleton } from "@/components/ui/card";
 import { getMission, getMySubmissions, registerMission, toggleSave } from "@/lib/frontend/api";
 import { useApi } from "@/lib/frontend/hooks";
 import { CATEGORY_LABELS } from "@/lib/frontend/types";
-import { cn, timeAgo } from "@/lib/frontend/utils";
+import { cn, formatMon } from "@/lib/frontend/utils";
 
 export default function MissionDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -70,189 +70,161 @@ export default function MissionDetailPage() {
     }
   }
 
+  const cta = completed
+    ? "Görev tamamlandı"
+    : limitReached
+      ? "Yükleme limitine ulaştın"
+      : starting
+        ? "Açılıyor…"
+        : mission.isRegistered
+          ? "Kayda devam et"
+          : "Kaydı başlat";
+
   return (
-    <AppShell title="Görev" backHref="/explore">
-      <div className="space-y-4">
-        {/* Cover / sample video */}
-        <div className="relative overflow-hidden rounded-2xl border-[1.5px] border-ink bg-ink">
-          {showVideo ? (
-            <video
-              src={mission.sampleVideoUrl}
-              poster={mission.coverUrl}
-              controls
-              autoPlay
-              playsInline
-              className="aspect-[4/3] w-full bg-black object-contain"
-            />
-          ) : (
-            <>
-              <img src={mission.coverUrl} alt={mission.title} className="aspect-[4/3] w-full object-cover" />
-              <button
-                onClick={() => setShowVideo(true)}
-                className="absolute bottom-3 left-3 inline-flex items-center gap-2 rounded-full border-[1.5px] border-ink bg-white px-3.5 py-1.5 text-sm font-medium hover:bg-ice"
-              >
-                <Play className="size-4 fill-ink" /> Örnek videoyu izle
-              </button>
-            </>
-          )}
+    <AppShell title="Görev" backHref="/explore" immersive flush>
+      {/* Cover / sample video */}
+      <div className="relative border-b-[1.5px] border-ink bg-ink">
+        {showVideo ? (
+          <video
+            src={mission.sampleVideoUrl}
+            poster={mission.coverUrl}
+            controls
+            autoPlay
+            playsInline
+            className="aspect-[16/10] w-full bg-black object-contain"
+          />
+        ) : (
+          <>
+            <CoverImage src={mission.coverUrl} alt={mission.title} className="aspect-[16/10] w-full" />
+            <button
+              onClick={() => setShowVideo(true)}
+              className="absolute right-4 bottom-4 inline-flex items-center gap-2 rounded-full border-[1.5px] border-ink bg-white px-3.5 py-1.5 font-mono text-xs hover:bg-ice"
+            >
+              <Play className="size-3.5 fill-ink" /> örnek klip
+            </button>
+          </>
+        )}
+        <Link
+          href="/explore"
+          aria-label="Geri"
+          className="absolute top-4 left-4 grid size-11 place-items-center rounded-full border-[1.5px] border-ink bg-white md:hidden"
+        >
+          <ChevronLeft className="size-5" />
+        </Link>
+        <button
+          onClick={async () => {
+            const saved = await toggleSave(mission.id);
+            toast({ kind: "info", title: saved ? "Kaydedildi" : "Kaydedilenlerden çıkarıldı" });
+          }}
+          aria-label="Kaydet"
+          className="absolute top-4 right-4 grid size-11 place-items-center rounded-full border-[1.5px] border-ink bg-white hover:bg-ice"
+        >
+          <Bookmark className={cn("size-5", mission.isSaved && "fill-primary text-primary")} />
+        </button>
+      </div>
+
+      <div className="space-y-5 px-4 pt-5">
+        {/* Title + reward */}
+        <div>
+          <div className="flex items-center gap-2 text-sm">
+            <Avatar initials={mission.company.initials} className="size-6 border-ink bg-ink text-[9px] text-white" />
+            <span className="font-bold">{mission.company.name}</span>
+            <span className="font-mono text-xs text-primary">#{CATEGORY_LABELS[mission.category]}</span>
+            <span className="ml-auto">
+              <StatusBadge status={completed ? "completed" : "active"} />
+            </span>
+          </div>
+          <h2 className="mt-3 text-2xl leading-tight font-bold tracking-tight sm:text-3xl">{mission.title}</h2>
+          <p className="mt-2 flex flex-wrap items-baseline gap-x-2">
+            <MonAmount value={mission.rewardMon} size="xl" />
+            <span className="text-sm text-ink/65">kabul edilen video başı</span>
+          </p>
         </div>
 
-        {/* Title block */}
-        <Card className="p-5">
-          <div className="flex items-center gap-3">
-            <Avatar initials={mission.company.initials} />
-            <div className="min-w-0 flex-1">
-              <p className="font-bold leading-tight">{mission.company.name}</p>
-              <p className="font-mono text-xs text-ink/55">
-                @{mission.company.handle} · {timeAgo(mission.createdAt)}
-              </p>
-            </div>
-            <StatusBadge status={completed ? "completed" : "active"} />
-          </div>
-          <span className="mt-4 inline-block rounded-full bg-ice px-2 py-0.5 font-mono text-[11px] text-primary">
-            #{CATEGORY_LABELS[mission.category].toLocaleLowerCase("tr")}
-          </span>
-          <h2 className="mt-2 text-2xl font-bold leading-tight tracking-tight sm:text-3xl">{mission.title}</h2>
-          <p className="mt-2 text-ink/75">{mission.description}</p>
-
-          <div className="mt-5 flex flex-wrap items-end justify-between gap-4 rounded-xl border-[1.5px] border-sky bg-ice/60 p-4">
-            <div>
-              <MonoLabel>Video başı ödül</MonoLabel>
-              <MonAmount value={mission.rewardMon} size="xl" className="block" />
-            </div>
-            <div className="flex gap-5 text-sm">
-              <div>
-                <MonoLabel className="block">Kişi başı</MonoLabel>
-                <b>{mission.perUserLimit} video</b>
-              </div>
-              <div>
-                <MonoLabel className="block">Min süre</MonoLabel>
-                <b>{mission.minDurationSec} sn</b>
-              </div>
-              <div>
-                <MonoLabel className="block">Kayıtlı</MonoLabel>
-                <b>{mission.registeredCount}</b>
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        {/* Progress */}
-        <Card className="p-5">
-          <div className="flex items-end justify-between">
-            <div>
-              <MonoLabel>Genel ilerleme</MonoLabel>
-              <p className="text-3xl font-bold tabular-nums">
-                {mission.acceptedCount}
-                <span className="text-ink/40">/{mission.targetCount}</span>
-              </p>
-            </div>
-            <p className="font-mono text-xs text-ink/60">
-              {completed ? "Dataset tamamlandı" : `${remaining} video kaldı`}
-            </p>
-          </div>
+        {/* Overall progress */}
+        <div>
           <ProgressBar
             value={mission.acceptedCount}
             max={mission.targetCount}
-            size="lg"
             tone={completed ? "success" : "primary"}
-            className="mt-3"
           />
+          <p className="mt-2 text-xs text-ink/65">
+            <b className="text-ink tabular-nums">
+              {mission.acceptedCount} / {mission.targetCount}
+            </b>{" "}
+            toplandı · {completed ? "dataset tamamlandı" : `${remaining} kaldı`} · bütçe Monad&apos;da kilitli
+          </p>
+        </div>
 
-          {mission.isRegistered && (
-            <div className="mt-5 border-t border-sky pt-4">
-              <div className="flex items-center justify-between text-sm">
-                <span>
-                  Senin yüklemen{" "}
-                  <b className="tabular-nums">
-                    {mission.myUploads}/{mission.perUserLimit}
-                  </b>
-                </span>
-                <span className="flex gap-3 font-mono text-xs">
-                  <span className="text-success">{mission.myAccepted} kabul</span>
-                  <span className="text-warning">{mission.myReviewing} inceleme</span>
-                </span>
-              </div>
-              <ProgressBar value={mission.myUploads} max={mission.perUserLimit} size="sm" className="mt-2" />
-              {mySubs && mySubs.length > 0 && (
-                <ul className="mt-3 space-y-2">
-                  {mySubs.map((s) => (
-                    <li key={s.id}>
-                      <Link
-                        href={`/submission/${s.id}`}
-                        className="flex items-center justify-between gap-3 rounded-xl border border-sky bg-white px-3 py-2 text-sm hover:border-primary"
-                      >
-                        <span className="flex min-w-0 items-center gap-2">
-                          <Video className="size-4 shrink-0 text-ink/50" />
-                          <span className="truncate font-mono text-xs">{s.fileName}</span>
-                        </span>
-                        <StatusBadge
-                          status={s.result === null ? "verifying" : s.result}
-                          className="shrink-0"
-                        />
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-        </Card>
+        <p className="text-sm text-ink/75">{mission.description}</p>
 
         {/* Criteria */}
-        <Card className="p-5">
-          <SectionTitle>Kabul kriterleri</SectionTitle>
+        <Card className="p-4">
+          <MonoLabel>Videon şunları göstermeli</MonoLabel>
           <ul className="mt-3 space-y-2.5">
             {mission.criteria.map((c) => (
               <li key={c} className="flex items-start gap-2.5 text-sm">
-                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" />
+                <span className="mt-0.5 grid size-4 shrink-0 place-items-center rounded-[4px] border-[1.5px] border-ink">
+                  <Check className="size-3 text-primary" strokeWidth={3} />
+                </span>
                 {c}
               </li>
             ))}
           </ul>
-          <div className="mt-4 flex items-center gap-2 rounded-xl bg-ice px-3 py-2 text-xs text-ink/70">
-            <Clock className="size-3.5" />
-            AI doğrulaması ~3 saniye sürer, kabul edilen videoya ödeme anında cüzdanına gönderilir.
-          </div>
+          <p className="mt-3 border-t border-sky pt-3 text-xs text-ink/60">
+            min {mission.minDurationSec} sn · 720p veya üstü · kişi başı {mission.perUserLimit} video
+          </p>
         </Card>
 
-        {/* CTA */}
-        <div className="sticky bottom-20 z-10 md:bottom-4">
-          <div className="flex items-center gap-2 rounded-full border-[1.5px] border-ink bg-white p-1.5">
-            <Button
-              size="lg"
-              className="flex-1"
-              onClick={start}
-              disabled={starting || completed || limitReached}
-            >
-              <Video className="size-5" />
-              {completed
-                ? "Görev tamamlandı"
-                : limitReached
-                  ? "Yükleme limitine ulaştın"
-                  : starting
-                    ? "Açılıyor…"
-                    : mission.isRegistered
-                      ? "Kayda devam et"
-                      : "Kaydı başlat"}
-            </Button>
-            <button
-              onClick={async () => {
-                const saved = await toggleSave(mission.id);
-                toast({ kind: "info", title: saved ? "Kaydedildi" : "Kaydedilenlerden çıkarıldı" });
-              }}
-              aria-label="Kaydet"
-              className="grid size-12 shrink-0 place-items-center rounded-full border-[1.5px] border-ink hover:bg-ice"
-            >
-              <Bookmark className={cn("size-5", mission.isSaved && "fill-primary text-primary")} />
-            </button>
-          </div>
-          {!mission.isRegistered && !completed && (
-            <p className="mt-2 flex items-center justify-center gap-1 font-mono text-[11px] text-ink/55">
-              <Users className="size-3" /> Kayıt ol ve {mission.perUserLimit} videoya kadar yükle
+        {/* Personal progress */}
+        {mission.isRegistered && (
+          <Card className="p-4">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-bold">Senin yüklemen</span>
+              <span className="tabular-nums">
+                {mission.myUploads} / {mission.perUserLimit} video
+              </span>
+            </div>
+            <ProgressBar value={mission.myUploads} max={mission.perUserLimit} size="sm" className="mt-2" />
+            <p className="mt-2 flex gap-3 text-xs">
+              <span className="text-success">✓ {mission.myAccepted} kabul</span>
+              <span className="text-warning">◐ {mission.myReviewing} incelemede</span>
+              {mission.myEarnedMon > 0 && (
+                <span className="ml-auto font-bold text-primary">+{formatMon(mission.myEarnedMon)} MON</span>
+              )}
             </p>
-          )}
-        </div>
+            {mySubs && mySubs.length > 0 && (
+              <ul className="mt-3 space-y-2 border-t border-sky pt-3">
+                {mySubs.map((s) => (
+                  <li key={s.id}>
+                    <Link
+                      href={`/submission/${s.id}`}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-sky px-3 py-2 text-sm hover:border-primary"
+                    >
+                      <span className="flex min-w-0 items-center gap-2">
+                        <Video className="size-4 shrink-0 text-ink/50" />
+                        <span className="truncate font-mono text-xs">{s.fileName}</span>
+                      </span>
+                      <StatusBadge status={s.result === null ? "verifying" : s.result} className="shrink-0" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        )}
+      </div>
+
+      {/* CTA — fixed on mobile, sticky at the column bottom on desktop */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t-[1.5px] border-ink bg-white px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] md:sticky md:mt-6 md:border-t-[1.5px]">
+        <Button size="lg" className="h-14 w-full text-base font-bold" onClick={start} disabled={starting || completed || limitReached}>
+          {cta}
+        </Button>
+        {!mission.isRegistered && !completed && (
+          <p className="mt-2 text-center font-mono text-[11px] text-ink/55">
+            {mission.registeredCount} kişi kayıtlı · kayıt ol ve {mission.perUserLimit} videoya kadar yükle
+          </p>
+        )}
       </div>
     </AppShell>
   );
