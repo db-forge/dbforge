@@ -300,6 +300,18 @@ export async function getSubmission(id: string): Promise<SubmissionView | null> 
   if (!IS_LIVE) await sleep(100);
   const sub = getState().submissions.find((x) => x.id === id);
   if (!sub) return IS_LIVE ? getRemoteSubmission(id) : null;
+  if (IS_LIVE) {
+    const remote = await live.fetchSubmission(id);
+    if (remote) {
+      mutate((state) => {
+        const current = state.submissions.find((item) => item.id === id);
+        if (!current) return;
+        current.result = live.resultFromStatus(remote.status);
+        current.aiScore = remote.confidence;
+        current.txHash = remote.txHash ?? "";
+      });
+    }
+  }
   resolveSubmission(sub);
   return toSubmissionView(getState().submissions.find((x) => x.id === id)!);
 }
@@ -435,9 +447,23 @@ export async function getBuyerMissions(): Promise<MissionPost[]> {
 }
 
 export async function getBuyerMission(id: string): Promise<BuyerMissionView | null> {
-  const m = IS_LIVE ? await ensureMission(id) : (await sleep(LATENCY), findMission(id));
+  const m = IS_LIVE ? await getMission(id) : (await sleep(LATENCY), findMission(id));
   if (!m || !ownedByBuyer(m)) return null;
   getState().submissions.forEach(resolveSubmission);
+  if (IS_LIVE) {
+    const localIds = getState().submissions.filter((item) => item.missionId === id).map((item) => item.id);
+    const remoteRows = await Promise.all(localIds.map((submissionId) => live.fetchSubmission(submissionId)));
+    mutate((state) => {
+      for (const remote of remoteRows) {
+        if (!remote) continue;
+        const current = state.submissions.find((item) => item.id === remote.id);
+        if (!current) continue;
+        current.result = live.resultFromStatus(remote.status);
+        current.aiScore = remote.confidence ?? (current.result === "accepted" ? 1 : current.aiScore);
+        current.txHash = remote.txHash ?? "";
+      }
+    });
+  }
   const post = toPost(m);
   const complete = post.acceptedCount >= post.targetCount;
 
@@ -447,7 +473,7 @@ export async function getBuyerMission(id: string): Promise<BuyerMissionView | nu
       id: x.id,
       contributorAddress: x.contributorAddress,
       previewUrl: m.coverUrl,
-      aiScore: x.aiScore ?? 0,
+      aiScore: x.aiScore ?? (x.result === "accepted" ? 1 : 0),
       status: x.result!,
       txHash: x.txHash || null,
       createdAt: x.createdAt,

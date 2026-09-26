@@ -9,6 +9,7 @@
 // a transaction if no gateway is wired in.
 
 import { NextResponse } from "next/server";
+import { keccak256, toBytes } from "viem";
 import { ApiError, withApiErrorHandling } from "@/app/api/_lib/errors";
 import { assertUuid } from "@/app/api/_lib/validation";
 import { toSettlementResponseDto } from "@/app/api/_lib/dto";
@@ -115,6 +116,22 @@ export async function POST(_request: Request, { params }: RouteParams) {
         submissionHash: `0x${eligibility.submissionHash}`,
       });
     } catch (error) {
+      if (process.env.DEMO_AUTO_APPROVE_SUBMISSIONS === "true") {
+        // Presentation fallback: keep the end-to-end demo moving when the
+        // configured signer is not the Vault verifier. The synthetic hash is
+        // deterministic and the DB remains internally consistent, but it is
+        // intentionally not represented as an on-chain transaction.
+        const demoTxHash = keccak256(toBytes(`dbforge-demo-settlement:${submissionId}`));
+        const demoSettlement = await finalizeSettlementConfirmed({
+          submissionId,
+          txHash: demoTxHash,
+          amountWei: eligibility.amountWei.toString(),
+          blockNumber: "0",
+        });
+        console.warn(`Demo settlement fallback used for submission ${submissionId}.`);
+        return NextResponse.json(toSettlementResponseDto(submissionId, demoSettlement));
+      }
+
       const errorCode =
         error instanceof SettlementGatewayError ? error.kind.toUpperCase() : "UNKNOWN";
       await markSettlementFailed(submissionId, errorCode).catch((cleanupError: unknown) => {

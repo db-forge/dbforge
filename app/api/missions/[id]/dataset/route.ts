@@ -16,6 +16,7 @@
 
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
+import { keccak256, toBytes } from "viem";
 import { metadataHash as monadMetadataHash } from "@/lib/monad";
 import { ApiError, withApiErrorHandling } from "@/app/api/_lib/errors";
 import { assertUuid } from "@/app/api/_lib/validation";
@@ -52,6 +53,7 @@ export async function POST(_request: Request, { params }: RouteParams) {
       );
     }
 
+    const supabase = getSupabaseServiceClient();
     let tree;
     try {
       tree = await getMerkleTreeProvider().buildDatasetTree({ chainMissionId: mission.chain_mission_id });
@@ -61,14 +63,41 @@ export async function POST(_request: Request, { params }: RouteParams) {
         isMonadSettlementError(error.cause) &&
         error.cause.reason === "EMPTY_DATASET"
       ) {
-        throw ApiError.datasetEmpty(`Mission ${missionId} has no settled samples on chain yet.`);
+        if (process.env.DEMO_AUTO_APPROVE_SUBMISSIONS !== "true") {
+          throw ApiError.datasetEmpty(`Mission ${missionId} has no settled samples on chain yet.`);
+        }
+
+        const { data: demoSettlements, error: demoError } = await supabase
+          .from("settlements")
+          .select("submission_hash, contributor_address, amount_wei, tx_hash, block_number")
+          .eq("mission_id", missionId)
+          .eq("status", "confirmed")
+          .order("submission_hash", { ascending: true });
+        if (demoError) throw demoError;
+        if (!demoSettlements?.length) {
+          throw ApiError.datasetEmpty(`Mission ${missionId} has no settled demo samples yet.`);
+        }
+
+        const entries = demoSettlements.map((row) => ({
+          submissionHash: `0x${row.submission_hash}`,
+          contributor: row.contributor_address,
+          amountWei: row.amount_wei,
+          txHash: row.tx_hash,
+          blockNumber: row.block_number ?? "0",
+        }));
+        tree = {
+          root: keccak256(toBytes(entries.map((entry) => entry.submissionHash).join("|"))),
+          sampleCount: entries.length,
+          entries,
+        };
+        console.warn(`Demo dataset fallback used for mission ${missionId}.`);
+      } else {
+        throw error;
       }
-      throw error;
     }
 
     // Best-effort enrichment only — never used for the root/count, and a
     // missing DB row just means semanticScore is null for that sample.
-    const supabase = getSupabaseServiceClient();
     const submissionHashes = tree.entries.map((e) => e.submissionHash.slice(2)); // strip 0x -> our bare-hex media_hash
     const { data: verifications } = await supabase
       .from("submissions")
