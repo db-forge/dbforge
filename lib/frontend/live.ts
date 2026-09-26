@@ -13,6 +13,7 @@ import type {
   VerifyResponseDto,
 } from "./dto";
 import { ApiRequestError, apiFetch, errorMessage } from "./http";
+import { t } from "./i18n";
 import type { Company, VerifyResult } from "./types";
 
 // ---------- missions ----------
@@ -29,7 +30,7 @@ function criteriaFrom(description: string, title: string) {
 
 function companyFor(address: string): Company {
   const tag = address.slice(2, 6).toUpperCase();
-  return { name: `Şirket ${tag}`, handle: address.slice(2, 10).toLowerCase(), initials: tag.slice(0, 2) };
+  return { name: t().errors.company(tag), handle: address.slice(2, 10).toLowerCase(), initials: tag.slice(0, 2) };
 }
 
 /**
@@ -148,7 +149,7 @@ export async function runPipeline(id: string, update: (patch: Patch) => void) {
       update({
         result: "rejected",
         aiScore: verify.technicalScore,
-        rejectReason: errorMessage(verify.failureCode, failed?.reason ?? "Teknik kontrolden geçmedi"),
+        rejectReason: errorMessage(verify.failureCode, failed?.reason ?? t().errors.technicalFail),
       });
       return;
     }
@@ -159,7 +160,7 @@ export async function runPipeline(id: string, update: (patch: Patch) => void) {
       update({
         result: "rejected",
         aiScore: ai.semanticScore,
-        rejectReason: failed?.evidence ?? "Görev kriterleri karşılanmadı",
+        rejectReason: failed?.evidence ?? t().errors.criteriaNotMet,
       });
       return;
     }
@@ -174,7 +175,7 @@ export async function runPipeline(id: string, update: (patch: Patch) => void) {
       update({ result: "accepted", txHash: paid.settlement.txHash });
     } catch (e) {
       // Accepted, but the payout could not be sent yet (e.g. contract not deployed).
-      update({ result: "accepted", txHash: "", note: `Ödeme sıraya alındı: ${(e as Error).message}` });
+      update({ result: "accepted", txHash: "", note: t().errors.payoutQueued((e as Error).message) });
     }
   } catch (e) {
     update({ result: "review", note: (e as Error).message });

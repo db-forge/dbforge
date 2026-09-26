@@ -1,5 +1,7 @@
 // Turns an uploaded image or video into a small JPEG data URL, usable as a
 // mission cover (survives reloads, unlike blob: URLs).
+import { t } from "./i18n";
+
 const MAX_W = 800;
 
 function drawToDataUrl(source: CanvasImageSource, w: number, h: number) {
@@ -24,11 +26,11 @@ export function fileToCoverDataUrl(file: File): Promise<string> {
         video.currentTime = Math.min(0.5, video.duration / 2 || 0);
       };
       video.onseeked = () => resolve(drawToDataUrl(video, video.videoWidth, video.videoHeight));
-      video.onerror = () => reject(new Error("Video okunamadı"));
+      video.onerror = () => reject(new Error(t().errors.videoRead));
     } else {
       const img = new Image();
       img.onload = () => resolve(drawToDataUrl(img, img.naturalWidth, img.naturalHeight));
-      img.onerror = () => reject(new Error("Görsel okunamadı"));
+      img.onerror = () => reject(new Error(t().errors.imageRead));
       img.src = url;
     }
   }).finally(() => URL.revokeObjectURL(url));

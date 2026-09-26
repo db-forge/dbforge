@@ -14,6 +14,7 @@ import {
   type MockSubmission,
 } from "@/lib/mock/store";
 import { COMPANIES, type MockMission } from "@/lib/mock/missions";
+import { missionTextEn } from "@/lib/mock/missions.en";
 import type {
   BuyerMissionView,
   BuyerSubmissionRow,
@@ -27,6 +28,7 @@ import type {
   WalletSummary,
 } from "./types";
 import { IS_LIVE } from "./config";
+import { currentLocale, t } from "./i18n";
 import * as live from "./live";
 import { randomHex, seededHex, sleep } from "./utils";
 
@@ -70,8 +72,14 @@ function toPost(m: MockMission): MissionPost {
 let liveMissions: MockMission[] = [];
 let liveLoaded = false;
 
+/** Seed missions carry Turkish copy; swap in the English text when needed. */
+function localize(m: MockMission): MockMission {
+  const en = currentLocale() === "en" ? missionTextEn(m.id) : undefined;
+  return en ? { ...m, ...en } : m;
+}
+
 function missionPool(): MockMission[] {
-  return IS_LIVE ? [...getState().createdMissions, ...liveMissions] : allMissions();
+  return (IS_LIVE ? [...getState().createdMissions, ...liveMissions] : allMissions()).map(localize);
 }
 
 /** Mock: fake latency. Live: (re)load missions from the API. */
@@ -106,8 +114,7 @@ function resolveSubmission(sub: MockSubmission) {
       target.aiScore = 0.68 + Math.random() * 0.08;
     } else {
       target.aiScore = 0.3 + Math.random() * 0.2;
-      target.rejectReason =
-        "Nesne kadrajda net değil, hareket tamamlanmıyor";
+      target.rejectReason = t().errors.mockReject;
     }
   });
 }
@@ -131,7 +138,7 @@ function toSubmissionView(sub: MockSubmission): SubmissionView {
     status,
     confidence: sub.aiScore ?? 0,
     txHash: sub.txHash,
-    missionTitle: m?.title ?? "Görev",
+    missionTitle: m?.title ?? t().common.mission,
     rewardMon: m?.rewardMon ?? 0,
     fileName: sub.fileName,
     previewUrl: sub.previewUrl,
@@ -147,15 +154,15 @@ function toSubmissionView(sub: MockSubmission): SubmissionView {
 
 export async function getMissions(filter: MissionFilter = {}): Promise<MissionPost[]> {
   await loadMissions();
-  const q = filter.query?.trim().toLocaleLowerCase("tr");
+  const q = filter.query?.trim().toLocaleLowerCase(currentLocale());
   return missionPool()
     .map(toPost)
     .filter((m) => !filter.category || filter.category === "all" || m.category === filter.category)
     .filter(
       (m) =>
         !q ||
-        m.title.toLocaleLowerCase("tr").includes(q) ||
-        m.company.name.toLocaleLowerCase("tr").includes(q),
+        m.title.toLocaleLowerCase(currentLocale()).includes(q) ||
+        m.company.name.toLocaleLowerCase(currentLocale()).includes(q),
     )
     .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
 }
@@ -177,7 +184,7 @@ async function ensureMission(id: string) {
 export async function registerMission(id: string): Promise<MissionPost> {
   if (!IS_LIVE) await sleep(150);
   const m = await ensureMission(id);
-  if (!m) throw new Error("Görev bulunamadı");
+  if (!m) throw new Error(t().common.missionNotFound);
   mutate((s) => {
     if (s.registered.includes(id)) return;
     s.registered.push(id);
@@ -209,13 +216,13 @@ export async function uploadSubmission(
 ): Promise<SubmissionView> {
   if (!IS_LIVE) await sleep(600);
   const m = await ensureMission(missionId);
-  if (!m) throw new Error("Görev bulunamadı");
+  if (!m) throw new Error(t().common.missionNotFound);
   const post = toPost(m);
-  if (post.status === "completed") throw new Error("Bu görev tamamlandı");
-  if (post.myUploads >= post.perUserLimit) throw new Error("Bu görev için yükleme limitine ulaştın");
+  if (post.status === "completed") throw new Error(t().errors.missionCompleted);
+  if (post.myUploads >= post.perUserLimit) throw new Error(t().errors.uploadLimit);
 
   if (IS_LIVE) {
-    if (!contributorAddress) throw new Error("Ödeme alabilmek için önce cüzdanını bağla");
+    if (!contributorAddress) throw new Error(t().errors.connectFirst);
     const uploaded = await live.uploadMedia(missionId, contributorAddress, file);
     const sub: MockSubmission = {
       id: uploaded.id,

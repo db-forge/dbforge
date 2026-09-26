@@ -5,11 +5,8 @@ import type { Mission, Submission } from "@/lib/types";
 export type Category = "teknoloji" | "doga" | "gundelik";
 export type CategoryFilter = Category | "all";
 
-export const CATEGORY_LABELS: Record<Category, string> = {
-  teknoloji: "Teknoloji",
-  doga: "Doğa",
-  gundelik: "Gündelik",
-};
+/** Labels live in the i18n dictionary (`t.categories`). */
+export const CATEGORIES: Category[] = ["teknoloji", "doga", "gundelik"];
 
 export interface Company {
   name: string;

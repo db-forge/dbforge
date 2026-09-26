@@ -1,13 +1,12 @@
 "use client";
 
-import { TONE_BORDER, TONE_FILL, type Tone } from "@/lib/frontend/tones";
 import { cn } from "@/lib/frontend/utils";
 
-type Option<T> = { value: T; label: string; count?: number; tone?: Tone };
+type Option<T> = { value: T; label: string; count?: number };
 
 /**
- * `pill`: rounded chips, selected one filled with its tone (default pink).
- * `underline`: X-style equal-width tabs with a tone-colored indicator.
+ * `pill`: rounded chips, selected one filled primary.
+ * `underline`: X-style equal-width tabs with a primary indicator.
  * `responsive`: pills on mobile, underline tabs from md up.
  */
 export function FilterTabs<T extends string>({
@@ -49,16 +48,16 @@ export function FilterTabs<T extends string>({
               role="tab"
               aria-selected={active}
               onClick={() => onChange(o.value)}
-              className="flex flex-1 justify-center px-2 pt-3 hover:bg-ice/60"
+              className="flex flex-1 justify-center px-2 pt-3 hover:bg-border/40"
             >
               <span
                 className={cn(
                   "border-b-4 pb-2.5 text-[15px] transition-colors",
-                  active ? cn("font-bold text-ink", TONE_BORDER[o.tone ?? "pink"]) : "border-transparent text-ink/60",
+                  active ? "border-primary font-bold text-text" : "border-transparent text-muted",
                 )}
               >
                 {o.label}
-                {o.count !== undefined && <span className="ml-1 font-mono text-xs text-ink/50">{o.count}</span>}
+                {o.count !== undefined && <span className="ml-1 font-mono text-xs text-muted">{o.count}</span>}
               </span>
             </button>
           );
@@ -79,12 +78,12 @@ export function FilterTabs<T extends string>({
             onClick={() => onChange(o.value)}
             className={cn(
               "h-9 shrink-0 rounded-full border-[1.5px] px-4 text-sm font-medium transition-colors",
-              active ? TONE_FILL[o.tone ?? "pink"] : "border-line bg-surface text-ink hover:bg-ice",
+              active ? "border-primary bg-primary text-white" : "border-border bg-surface text-text hover:bg-border/40",
             )}
           >
             {o.label}
             {o.count !== undefined && (
-              <span className={cn("ml-1", active ? "opacity-75" : "text-ink/60")}>· {o.count}</span>
+              <span className={cn("ml-1", active ? "opacity-75" : "text-muted")}>· {o.count}</span>
             )}
           </button>
         );

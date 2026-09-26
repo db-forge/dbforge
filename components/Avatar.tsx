@@ -1,21 +1,11 @@
-import { avatarFill } from "@/lib/frontend/tones";
 import { cn } from "@/lib/frontend/utils";
 
-/** Initials avatar. `colorKey` (e.g. company handle) picks a stable purple/pink/lemon fill. */
-export function Avatar({
-  initials,
-  colorKey,
-  className,
-}: {
-  initials: string;
-  colorKey?: string;
-  className?: string;
-}) {
+/** Initials avatar for people (companies use CompanyAvatar). */
+export function Avatar({ initials, className }: { initials: string; className?: string }) {
   return (
     <div
       className={cn(
-        "grid size-10 shrink-0 place-items-center rounded-full border-[1.5px] border-line bg-sky font-mono text-sm font-bold text-ink",
-        colorKey && avatarFill(colorKey),
+        "grid size-10 shrink-0 place-items-center rounded-full border-[1.5px] border-border bg-surface font-mono text-sm font-bold text-text",
         className,
       )}
     >

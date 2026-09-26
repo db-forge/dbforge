@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { useConnectWallet } from "@/components/ConnectWallet";
 import { CoverImage } from "@/components/CoverImage";
+import { useT } from "@/components/I18nProvider";
 import { MissionPostCard } from "@/components/MissionPostCard";
 import { BuyerShell } from "@/components/shell/BuyerShell";
 import { useToast } from "@/components/Toaster";
@@ -15,18 +16,11 @@ import { createMission, CURRENT_BUYER } from "@/lib/frontend/api";
 import { createMissionTx, type TxState } from "@/lib/frontend/chain";
 import { useWalletStatus } from "@/lib/frontend/hooks";
 import { fileToCoverDataUrl } from "@/lib/frontend/media";
-import { CATEGORY_LABELS, type Category, type MissionPost } from "@/lib/frontend/types";
-import { CATEGORY_TONE, TONE_FILL } from "@/lib/frontend/tones";
+import { CATEGORIES, type Category, type MissionPost } from "@/lib/frontend/types";
 import { cn, formatMon } from "@/lib/frontend/utils";
 
-const DEFAULT_CRITERIA = [
-  "En az 10 saniye, kesintisiz tek çekim",
-  "Eller ve nesne kadrajda net görünüyor",
-  "Yeterli ışık, bulanık olmayan görüntü",
-];
-
 const inputClass =
-  "w-full rounded-xl border-[1.5px] border-line bg-surface px-4 py-3 text-[15px] outline-none placeholder:text-ink/40 focus:border-primary";
+  "w-full rounded-xl border-[1.5px] border-border bg-surface px-4 py-3 text-[15px] outline-none placeholder:text-muted focus:border-primary";
 
 /** Number input with a unit ("MON", "video") inside the box. */
 function UnitInput({
@@ -43,7 +37,7 @@ function UnitInput({
   className?: string;
 }) {
   return (
-    <div className="flex items-center rounded-xl border-[1.5px] border-line bg-surface px-4 focus-within:border-primary">
+    <div className="flex items-center rounded-xl border-[1.5px] border-border bg-surface px-4 focus-within:border-primary">
       <input
         type="number"
         min="0"
@@ -53,7 +47,7 @@ function UnitInput({
         onChange={(e) => onChange(e.target.value)}
         className={cn("w-full min-w-0 bg-transparent py-3 text-[15px] tabular-nums outline-none", className)}
       />
-      <span className="shrink-0 pl-2 text-[15px] text-ink/60">{unit}</span>
+      <span className="shrink-0 pl-2 text-[15px] text-muted">{unit}</span>
     </div>
   );
 }
@@ -72,13 +66,14 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 
 export default function NewMissionPage() {
   const toast = useToast();
+  const t = useT();
   const { isConnected } = useWalletStatus();
   const { connectWallet } = useConnectWallet();
 
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<Category>("gundelik");
   const [description, setDescription] = useState("");
-  const [criteria, setCriteria] = useState<string[]>(DEFAULT_CRITERIA);
+  const [criteria, setCriteria] = useState<string[]>(t.buyer.defaultCriteria);
   const [newCriterion, setNewCriterion] = useState("");
   const [reward, setReward] = useState("0.10");
   const [target, setTarget] = useState("100");
@@ -96,10 +91,10 @@ export default function NewMissionPage() {
   const busy = tx.stage === "awaiting_signature" || tx.stage === "pending";
 
   const errors = {
-    title: title.trim().length < 3 ? "En az 3 karakter" : null,
-    reward: rewardNum <= 0 ? "0'dan büyük olmalı" : null,
-    target: targetNum < 1 ? "En az 1" : null,
-    limit: limitNum < 1 ? "En az 1" : limitNum > targetNum ? "Hedeften büyük olamaz" : null,
+    title: title.trim().length < 3 ? t.buyer.errors.title : null,
+    reward: rewardNum <= 0 ? t.buyer.errors.positive : null,
+    target: targetNum < 1 ? t.buyer.errors.min1 : null,
+    limit: limitNum < 1 ? t.buyer.errors.min1 : limitNum > targetNum ? t.buyer.errors.overTarget : null,
   };
   const valid = !Object.values(errors).some(Boolean);
 
@@ -108,8 +103,8 @@ export default function NewMissionPage() {
       id: "preview",
       chainMissionId: "",
       buyerAddress: "",
-      title: title.trim() || "Görev başlığı",
-      description: description.trim() || "Görev açıklaması burada görünecek.",
+      title: title.trim() || t.buyer.previewTitle,
+      description: description.trim() || t.buyer.previewDesc,
       rewardMon: rewardNum,
       targetCount: Math.max(targetNum, 1),
       acceptedCount: 0,
@@ -131,7 +126,7 @@ export default function NewMissionPage() {
       myRejected: 0,
       myEarnedMon: 0,
     }),
-    [title, description, rewardNum, targetNum, limitNum, category, cover, criteria],
+    [title, description, rewardNum, targetNum, limitNum, category, cover, criteria, t],
   );
 
   async function onPickCover(file: File) {
@@ -160,7 +155,7 @@ export default function NewMissionPage() {
     }
     const result = await createMissionTx({ title, rewardMon: rewardNum, targetCount: targetNum }, setTx);
     if (result.stage !== "success") {
-      toast({ kind: "error", title: "İşlem başarısız", description: result.error });
+      toast({ kind: "error", title: t.buyer.txFailed, description: result.error });
       return;
     }
     const mission = await createMission({
@@ -175,42 +170,42 @@ export default function NewMissionPage() {
       txHash: result.hash,
     });
     setCreatedId(mission.id);
-    toast({ kind: "success", title: "Görev yayında", description: `${formatMon(budget)} MON kilitlendi.` });
+    toast({ kind: "success", title: t.buyer.published, description: t.buyer.lockedToast(formatMon(budget)) });
   }
 
   const lockText = `${targetNum} × ${formatMon(rewardNum)} = ${formatMon(budget, 0)} MON`;
 
   return (
-    <BuyerShell crumb="Şirket · Yeni post">
+    <BuyerShell crumb={t.buyer.newCrumb}>
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_390px]">
         {/* Form */}
         <div className="space-y-5">
-          <h1 className="text-3xl font-bold tracking-tight">Veri görevi paylaş</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t.buyer.newTitle}</h1>
 
-          <Field label="Post başlığı" hint={errors.title && title ? errors.title : undefined}>
+          <Field label={t.buyer.fields.title} hint={errors.title && title ? errors.title : undefined}>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="ör. Masadan şeffaf şişe kaldırma videosu (10–20 sn)"
+              placeholder={t.buyer.fields.titlePlaceholder}
               className={inputClass}
               maxLength={80}
             />
           </Field>
 
           <div>
-            <span className="mb-1.5 block text-sm font-bold">Kategori</span>
+            <span className="mb-1.5 block text-sm font-bold">{t.buyer.fields.category}</span>
             <div className="flex flex-wrap gap-2">
-              {(Object.keys(CATEGORY_LABELS) as Category[]).map((c) => (
+              {CATEGORIES.map((c) => (
                 <button
                   key={c}
                   type="button"
                   onClick={() => setCategory(c)}
                   className={cn(
-                    "h-10 rounded-full border-[1.5px] border-line px-4 text-sm font-medium",
-                    category === c ? TONE_FILL[CATEGORY_TONE[c]] : "bg-surface hover:bg-ice",
+                    "h-10 rounded-full border-[1.5px] border-border px-4 text-sm font-medium",
+                    category === c ? "border-primary bg-primary text-white" : "bg-surface hover:bg-border/40",
                   )}
                 >
-                  {CATEGORY_LABELS[c]}
+                  {t.categories[c]}
                 </button>
               ))}
             </div>
@@ -221,20 +216,21 @@ export default function NewMissionPage() {
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
-                className="relative grid h-full min-h-36 w-full place-items-center overflow-hidden rounded-xl border-[1.5px] border-dashed border-line bg-surface text-sm text-ink/70 hover:border-primary hover:text-accent"
+                className="relative grid h-full min-h-36 w-full place-items-center overflow-hidden rounded-xl border-[1.5px] border-dashed border-border bg-surface text-sm text-muted hover:border-primary hover:text-text"
               >
                 {coverLoading ? (
-                  <Loader2 className="size-5 animate-spin text-accent" />
+                  <Loader2 className="size-5 animate-spin text-primary" />
                 ) : cover ? (
                   <>
                     <CoverImage src={cover} className="absolute inset-0 size-full" />
-                    <span className="absolute right-2 bottom-2 rounded-full border-[1.5px] border-line bg-surface px-2.5 py-0.5 text-xs text-ink">
-                      Değiştir
+                    <span className="absolute right-2 bottom-2 rounded-full border-[1.5px] border-border bg-surface px-2.5 py-0.5 text-xs text-text">
+                      {t.buyer.fields.change}
                     </span>
                   </>
                 ) : (
                   <span className="flex flex-col items-center gap-1.5 px-4 text-center">
-                    <ImagePlus className="size-5" />+ Örnek foto / video yükle
+                    <ImagePlus className="size-5" />
+                    {t.buyer.fields.uploadCover}
                   </span>
                 )}
               </button>
@@ -250,12 +246,12 @@ export default function NewMissionPage() {
                 }}
               />
             </div>
-            <Field label="Açıklama ve kabul kriterleri">
+            <Field label={t.buyer.fields.description}>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={4}
-                placeholder="Ne çekilmeli, hangi ortamda, neden?"
+                placeholder={t.buyer.fields.descriptionPlaceholder}
                 className={cn(inputClass, "resize-y")}
               />
             </Field>
@@ -266,14 +262,14 @@ export default function NewMissionPage() {
               {criteria.map((c, i) => (
                 <li
                   key={`${c}-${i}`}
-                  className="inline-flex items-center gap-1 rounded-full border-[1.5px] border-sky bg-surface py-1 pr-1 pl-3 text-sm"
+                  className="inline-flex items-center gap-1 rounded-full border-[1.5px] border-border bg-surface py-1 pr-1 pl-3 text-sm"
                 >
                   {c}
                   <button
                     type="button"
-                    aria-label="Kriteri sil"
+                    aria-label={t.buyer.fields.removeCriterion}
                     onClick={() => setCriteria((prev) => prev.filter((_, j) => j !== i))}
-                    className="grid size-6 place-items-center rounded-full text-ink/50 hover:bg-ice hover:text-danger"
+                    className="grid size-6 place-items-center rounded-full text-muted hover:bg-border/40 hover:text-danger"
                   >
                     <X className="size-3.5" />
                   </button>
@@ -290,78 +286,78 @@ export default function NewMissionPage() {
                     addCriterion();
                   }
                 }}
-                placeholder="Kriter ekle (ör. Şişe masada başlar)"
+                placeholder={t.buyer.fields.criterionPlaceholder}
                 className={cn(inputClass, "py-2 text-sm")}
               />
-              <Button type="button" variant="outline" onClick={addCriterion} aria-label="Kriter ekle">
+              <Button type="button" variant="outline" onClick={addCriterion} aria-label={t.buyer.fields.addCriterion}>
                 <Plus className="size-4" />
               </Button>
             </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Video başı ödül" hint={errors.reward ?? undefined}>
-              <UnitInput value={reward} onChange={setReward} unit="MON" step="0.01" className="font-bold text-accent" />
+            <Field label={t.buyer.fields.reward} hint={errors.reward ?? undefined}>
+              <UnitInput value={reward} onChange={setReward} unit="MON" step="0.01" className="font-bold text-money" />
             </Field>
-            <Field label="Hedef video" hint={errors.target ?? undefined}>
-              <UnitInput value={target} onChange={setTarget} unit="video" step="1" />
+            <Field label={t.buyer.fields.target} hint={errors.target ?? undefined}>
+              <UnitInput value={target} onChange={setTarget} unit={t.common.video} step="1" />
             </Field>
-            <Field label="Kişi başı limit" hint={errors.limit ?? undefined}>
-              <UnitInput value={limit} onChange={setLimit} unit="video" step="1" />
+            <Field label={t.buyer.fields.limit} hint={errors.limit ?? undefined}>
+              <UnitInput value={limit} onChange={setLimit} unit={t.common.video} step="1" />
             </Field>
           </div>
 
           {/* Lock summary + CTA */}
-          <div className="rounded-2xl bg-pink p-5 text-black">
+          <div className="rounded-2xl border-[1.5px] border-primary bg-surface p-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <p className="text-sm font-medium text-black/65">Kontrata kilitlenecek</p>
-                <p className="text-2xl font-bold tracking-tight tabular-nums sm:text-3xl">{lockText}</p>
+                <p className="text-sm font-medium text-muted">{t.buyer.willLock}</p>
+                <p className="text-2xl font-bold tracking-tight text-money tabular-nums sm:text-3xl">{lockText}</p>
               </div>
               {!createdId && (
-                <Button variant="ink" size="lg" className="h-13 shrink-0 border-black bg-black px-6 font-bold text-white hover:bg-black/85" onClick={submit} disabled={!valid || busy}>
+                <Button size="lg" className="h-13 shrink-0 px-6 font-bold" onClick={submit} disabled={!valid || busy}>
                   {busy && <Loader2 className="size-5 animate-spin" />}
-                  {!isConnected ? "Cüzdan bağla ve devam et" : "Bütçeyi kilitle ve paylaş"}
+                  {!isConnected ? t.buyer.connectAndContinue : t.buyer.lockAndPublish}
                 </Button>
               )}
             </div>
-            {tx.stage !== "idle" && <TxStatus state={tx} className="mt-4 border-sky" />}
+            {tx.stage !== "idle" && <TxStatus state={tx} className="mt-4 border-border" />}
             {tx.stage === "error" && (
-              <Button variant="ink" className="mt-3 w-full border-black bg-black text-white hover:bg-black/85" onClick={() => setTx({ stage: "idle" })}>
-                <RotateCcw className="size-4" /> Tekrar dene
+              <Button variant="outline" className="mt-3 w-full" onClick={() => setTx({ stage: "idle" })}>
+                <RotateCcw className="size-4" /> {t.common.tryAgain}
               </Button>
             )}
-            <p className="mt-3 font-mono text-[11px] text-black/60">
-              Bütçe sadece kabul edilen videolara ödenir, kalanı iade edilebilir. Demo: başlıkta &ldquo;fail&rdquo;
-              geçerse işlem hata verir.
+            <p className="mt-3 font-mono text-[11px] text-muted">
+              {t.buyer.disclaimer}
             </p>
           </div>
         </div>
 
         {/* Live preview */}
         <div className="space-y-4 lg:sticky lg:top-26 lg:self-start">
-          <MonoLabel className="block normal-case">ÖNİZLEME · akışta böyle görünecek</MonoLabel>
+          <MonoLabel className="block normal-case">{t.buyer.previewLabel}</MonoLabel>
           <MissionPostCard mission={preview} preview />
 
           {createdId && (
-            <Card className="animate-toast-in border-success p-5">
-              <p className="text-lg font-bold">Görev yayında</p>
-              <p className="mt-1 text-sm text-ink/70">
-                <b className="text-accent">{formatMon(budget)} MON</b> kontratta kilitlendi.
+            <Card className="animate-toast-in border-money p-5">
+              <p className="text-lg font-bold">{t.buyer.published}</p>
+              <p className="mt-1 text-sm text-muted">
+                <b className="text-money">{formatMon(budget)} MON</b>
+                {t.buyer.lockedAfter}
               </p>
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
                 <LinkButton href={`/buyer/missions/${createdId}`}>
-                  Dashboard <ArrowRight className="size-4" />
+                  {t.buyer.dashboard} <ArrowRight className="size-4" />
                 </LinkButton>
                 <LinkButton href="/explore" variant="outline">
-                  Akışta gör
+                  {t.buyer.seeInFeed}
                 </LinkButton>
               </div>
             </Card>
           )}
-          <p className="font-mono text-[11px] text-ink/50">
+          <p className="font-mono text-[11px] text-muted">
             <Link href="/buyer" className="underline">
-              ← Görevlerim
+              {t.buyer.backToMissions}
             </Link>
           </p>
         </div>

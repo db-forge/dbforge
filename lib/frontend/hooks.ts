@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 import { useBalance, useChainId, useConnection } from "wagmi";
 import { onDataChange } from "./api";
 import { IS_LIVE } from "./config";
+import { t } from "./i18n";
 import { monadTestnet } from "./wagmi";
 
 /**
@@ -33,7 +34,7 @@ export function useApi<T>(fn: () => Promise<T>, deps: unknown[] = []) {
       if (k === keyRef.current) setResult({ key: k, data, error: null });
     } catch (e) {
       if (k === keyRef.current)
-        setResult((prev) => ({ ...prev, key: k, error: e instanceof Error ? e.message : "Bir hata oluştu" }));
+        setResult((prev) => ({ ...prev, key: k, error: e instanceof Error ? e.message : t().common.genericError }));
     }
   }, []);
 

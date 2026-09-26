@@ -1,11 +1,14 @@
+"use client";
+
 /* eslint-disable @next/next/no-img-element */
 import { cn } from "@/lib/frontend/utils";
+import { useT } from "./I18nProvider";
 
 /** Mission cover; falls back to a wireframe-style placeholder when there's no image yet. */
 export function CoverImage({
   src,
   alt = "",
-  label = "örnek foto",
+  label,
   className,
 }: {
   src?: string | null;
@@ -13,10 +16,11 @@ export function CoverImage({
   label?: string;
   className?: string;
 }) {
+  const t = useT();
   if (!src) {
     return (
-      <div className={cn("grid place-items-center bg-ice font-mono text-xs text-ink/50", className)}>
-        [ {label} ]
+      <div className={cn("grid place-items-center bg-surface font-mono text-xs text-muted", className)}>
+        [ {label ?? t.cover.placeholder} ]
       </div>
     );
   }

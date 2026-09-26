@@ -5,40 +5,39 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { EmptyState } from "@/components/EmptyState";
+import { useT } from "@/components/I18nProvider";
 import { FilterTabs } from "@/components/FilterTabs";
 import { MissionPostCard, MissionPostCardSkeleton } from "@/components/MissionPostCard";
 import { AppShell } from "@/components/shell/AppShell";
 import { Button } from "@/components/ui/button";
 import { getMissions } from "@/lib/frontend/api";
 import { useApi } from "@/lib/frontend/hooks";
-import { CATEGORY_TONE, type Tone } from "@/lib/frontend/tones";
-import type { CategoryFilter } from "@/lib/frontend/types";
-
-const FILTERS: { value: CategoryFilter; label: string; tone: Tone }[] = [
-  { value: "all", label: "Tümü", tone: CATEGORY_TONE.all },
-  { value: "teknoloji", label: "Teknoloji", tone: CATEGORY_TONE.teknoloji },
-  { value: "doga", label: "Doğa", tone: CATEGORY_TONE.doga },
-  { value: "gundelik", label: "Gündelik", tone: CATEGORY_TONE.gundelik },
-];
+import { CATEGORIES, type CategoryFilter } from "@/lib/frontend/types";
 
 function Feed() {
+  const t = useT();
   const query = useSearchParams().get("q") ?? "";
   const [category, setCategory] = useState<CategoryFilter>("all");
   const { data: missions, loading } = useApi(() => getMissions({ category, query }), [category, query]);
 
   return (
     <AppShell
-      title="Keşfet"
+      title={t.explore.title}
       brandOnMobile
       flush
-      subheader={<FilterTabs options={FILTERS} value={category} onChange={setCategory} variant="responsive" />}
+      subheader={<FilterTabs options={[
+            { value: "all", label: t.explore.all },
+            ...CATEGORIES.map((c) => ({ value: c, label: t.categories[c] })),
+          ]} value={category} onChange={setCategory} variant="responsive" />}
     >
       {query && (
-        <div className="mx-4 mt-3 flex items-center justify-between rounded-full border-[1.5px] border-sky bg-surface px-4 py-2 text-sm">
+        <div className="mx-4 mt-3 flex items-center justify-between rounded-full border-[1.5px] border-border bg-surface px-4 py-2 text-sm">
           <span>
-            &ldquo;<b>{query}</b>&rdquo; için sonuçlar
+            {t.explore.resultsBefore}
+            <b>{query}</b>
+            {t.explore.resultsAfter}
           </span>
-          <Link href="/explore" aria-label="Aramayı temizle" className="text-ink/60 hover:text-ink">
+          <Link href="/explore" aria-label={t.explore.clearSearch} className="text-muted hover:text-text">
             <X className="size-4" />
           </Link>
         </div>
@@ -55,11 +54,11 @@ function Feed() {
           <EmptyState
             className="m-4"
             icon={SearchX}
-            title="Bu kategoride görev yok"
-            description="Şirketler yeni görevler açtıkça burada görünecek. Diğer kategorilere göz at."
+            title={t.explore.emptyTitle}
+            description={t.explore.emptyDesc}
             action={
               <Button variant="outline" onClick={() => setCategory("all")}>
-                Tüm görevleri göster
+                {t.explore.showAll}
               </Button>
             }
           />

@@ -2,16 +2,17 @@ import { Bookmark, Search, UserRound, Wallet, type LucideIcon } from "lucide-rea
 
 export interface NavItem {
   href: string;
-  label: string;
+  /** Key into the dictionary's `nav` section. */
+  labelKey: "explore" | "registered" | "wallet" | "profile";
   icon: LucideIcon;
   mobile?: boolean;
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { href: "/explore", label: "Keşfet", icon: Search, mobile: true },
-  { href: "/registered", label: "Kayıtlılarım", icon: Bookmark, mobile: true },
-  { href: "/wallet", label: "Cüzdan", icon: Wallet, mobile: true },
-  { href: "/profile", label: "Profil", icon: UserRound },
+  { href: "/explore", labelKey: "explore", icon: Search, mobile: true },
+  { href: "/registered", labelKey: "registered", icon: Bookmark, mobile: true },
+  { href: "/wallet", labelKey: "wallet", icon: Wallet, mobile: true },
+  { href: "/profile", labelKey: "profile", icon: UserRound },
 ];
 
 export function isActive(pathname: string, href: string) {

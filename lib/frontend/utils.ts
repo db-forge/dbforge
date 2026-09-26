@@ -21,21 +21,25 @@ export function shortAddr(addr?: string | null, head = 6, tail = 4) {
 }
 
 export function formatMon(value: number, digits = 2) {
-  // Crypto amounts use a dot decimal separator (0.10 MON), even in the Turkish UI.
+  // Crypto amounts use a dot decimal separator (0.10 MON) in every locale.
   return value.toLocaleString("en-US", {
     minimumFractionDigits: digits,
     maximumFractionDigits: Math.max(digits, 4),
   });
 }
 
-export function timeAgo(iso: string) {
+/** Short relative time; `labels` is the dictionary's `time` section. */
+export function timeAgo(
+  iso: string,
+  labels: { now: string; min: (n: number) => string; hour: (n: number) => string; day: (n: number) => string },
+) {
   const diff = Math.max(0, Date.now() - new Date(iso).getTime());
   const min = Math.floor(diff / 60000);
-  if (min < 1) return "şimdi";
-  if (min < 60) return `${min} dk`;
+  if (min < 1) return labels.now;
+  if (min < 60) return labels.min(min);
   const h = Math.floor(min / 60);
-  if (h < 24) return `${h} sa`;
-  return `${Math.floor(h / 24)} g`;
+  if (h < 24) return labels.hour(h);
+  return labels.day(Math.floor(h / 24));
 }
 
 const HEX = "0123456789abcdef";

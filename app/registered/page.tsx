@@ -6,6 +6,7 @@ import { useState } from "react";
 import { CoverImage } from "@/components/CoverImage";
 import { EmptyState } from "@/components/EmptyState";
 import { FilterTabs } from "@/components/FilterTabs";
+import { useLocale, useT } from "@/components/I18nProvider";
 import { ProgressBar } from "@/components/ProgressBar";
 import { AppShell } from "@/components/shell/AppShell";
 import { LinkButton } from "@/components/ui/button";
@@ -21,14 +22,16 @@ function RegistrationCard({ mission, tab, primary }: { mission: MissionPost; tab
   const completed = mission.status === "completed";
   const canUpload = !completed && mission.myUploads < mission.perUserLimit;
   const captureHref = `/mission/${mission.id}/capture`;
+  const t = useT();
+  const locale = useLocale();
   return (
     <Card className="p-4">
       <Link href={`/mission/${mission.id}`} className="group flex items-center gap-3">
-        <CoverImage src={mission.coverUrl} label="" className="size-14 shrink-0 rounded-xl border-[1.5px] border-line" />
+        <CoverImage src={mission.coverUrl} label="" className="size-14 shrink-0 rounded-xl border-[1.5px] border-border" />
         <div className="min-w-0">
-          <p className="truncate text-lg leading-tight font-bold group-hover:text-accent">{mission.title}</p>
-          <p className="mt-0.5 truncate text-sm text-ink/65">
-            {mission.company.name} · <b className="text-lemon">{formatMon(mission.rewardMon)} MON</b> / video
+          <p className="truncate text-lg leading-tight font-bold text-text group-hover:underline">{mission.title}</p>
+          <p className="mt-0.5 truncate text-sm text-muted">
+            {mission.company.name} · <b className="text-money">{formatMon(mission.rewardMon)} MON</b> / video
           </p>
         </div>
       </Link>
@@ -36,93 +39,78 @@ function RegistrationCard({ mission, tab, primary }: { mission: MissionPost; tab
       {mission.isRegistered ? (
         <div className="mt-4">
           <div className="mb-1.5 flex items-center justify-between text-sm">
-            <span className="font-bold">Senin yüklemen</span>
-            <span className="tabular-nums">
-              {mission.myUploads} / {mission.perUserLimit} video
+            <span className="font-bold text-text">{t.common.yourUploads}</span>
+            <span className="text-muted tabular-nums">
+              {t.common.uploadsOf(mission.myUploads, mission.perUserLimit)}
             </span>
           </div>
-          <ProgressBar
-            value={mission.myUploads}
-            max={mission.perUserLimit}
-            tone={tab === "done" ? "success" : "pink"}
-          />
+          <ProgressBar value={mission.myUploads} max={mission.perUserLimit} />
           {mission.myLastRejectReason ? (
             <p className="mt-2.5 text-sm text-danger">
-              {mission.myRejected} video reddedildi: {mission.myLastRejectReason.toLocaleLowerCase("tr")} —{" "}
+              {t.registered.rejected(mission.myRejected, mission.myLastRejectReason.toLocaleLowerCase(locale))}
               <Link href={captureHref} className="font-bold underline underline-offset-2">
-                tekrar dene
+                {t.registered.retry}
               </Link>
             </p>
           ) : (
             (mission.myAccepted > 0 || mission.myReviewing > 0) && (
               <div className="mt-2.5 flex items-center justify-between text-sm">
                 <span className="flex gap-4">
-                  {mission.myAccepted > 0 && <span className="text-success">✓ {mission.myAccepted} kabul</span>}
-                  {mission.myReviewing > 0 && <span className="text-warning">◐ {mission.myReviewing} incelemede</span>}
+                  {mission.myAccepted > 0 && <span className="text-money">{t.common.acceptedCount(mission.myAccepted)}</span>}
+                  {mission.myReviewing > 0 && <span className="text-warn">{t.common.reviewingCount(mission.myReviewing)}</span>}
                 </span>
                 {mission.myEarnedMon > 0 && (
-                  <span className="font-bold text-lemon tabular-nums">+{formatMon(mission.myEarnedMon)} MON</span>
+                  <span className="font-bold text-money tabular-nums">+{formatMon(mission.myEarnedMon)} MON</span>
                 )}
               </div>
             )
           )}
         </div>
       ) : (
-        <p className="mt-3 text-sm text-ink/60">Henüz kayıt olmadın · {mission.registeredCount} kişi kayıtlı</p>
+        <p className="mt-3 text-sm text-muted">{t.registered.notRegistered(mission.registeredCount)}</p>
       )}
 
       {canUpload && primary && (
         <LinkButton href={captureHref} size="lg" className="mt-4 h-13 w-full font-bold">
-          Video yükle
+          {t.registered.upload}
         </LinkButton>
       )}
       {canUpload && !primary && (
-        <Link href={captureHref} className="mt-3 inline-block text-sm font-bold text-pink underline underline-offset-2">
-          {mission.isRegistered ? "Video yükle →" : "Kayıt ol ve çek →"}
+        <Link href={captureHref} className="mt-3 inline-block text-sm font-bold text-link underline underline-offset-2">
+          {mission.isRegistered ? t.registered.uploadArrow : t.registered.registerAndShoot}
         </Link>
       )}
       {!canUpload && (
-        <p className="mt-3 font-mono text-xs text-ink/55">{completed ? "Görev tamamlandı" : "Yükleme limiti doldu"}</p>
+        <p className="mt-3 font-mono text-xs text-muted">{completed ? t.registered.missionDone : t.registered.limitFull}</p>
       )}
     </Card>
   );
 }
 
-const EMPTY: Record<Tab, { title: string; description: string; icon: typeof ListChecks }> = {
-  active: {
-    title: "Devam eden kaydın yok",
-    description: "Akıştan bir göreve kayıt ol, videonu çek, anında MON kazan.",
-    icon: ListChecks,
-  },
-  saved: {
-    title: "Kaydedilen görev yok",
-    description: "Postlardaki yer imi ikonuyla görevleri sonraya sakla.",
-    icon: Bookmark,
-  },
-  done: {
-    title: "Henüz biten görev yok",
-    description: "Limitini doldurduğun veya tamamlanan görevler burada listelenir.",
-    icon: CheckCheck,
-  },
+const EMPTY_ICONS: Record<Tab, typeof ListChecks> = {
+  active: ListChecks,
+  saved: Bookmark,
+  done: CheckCheck,
 };
 
 export default function RegisteredPage() {
   const [tab, setTab] = useState<Tab>("active");
   const { data, loading } = useApi(getMyRegistrations);
   const list = data?.[tab] ?? [];
-  const empty = EMPTY[tab];
+  const t = useT();
+  const empty = t.registered.empty[tab];
 
   return (
     <AppShell
-      title="Kayıtlı işlemlerim"
+      title={t.registered.title}
       subheader={
         <FilterTabs<Tab>
           value={tab}
           onChange={setTab}
           options={[
-            { value: "active", label: "Devam eden", count: data?.active.length, tone: "pink" },
-            { value: "saved", label: "Kaydedilenler", count: data?.saved.length, tone: "lemon" },
-            { value: "done", label: "Biten", count: data?.done.length, tone: "primary" },
+            { value: "active", label: t.registered.tabs.active, count: data?.active.length },
+            { value: "saved", label: t.registered.tabs.saved, count: data?.saved.length },
+            { value: "done", label: t.registered.tabs.done, count: data?.done.length },
           ]}
         />
       }
@@ -135,10 +123,10 @@ export default function RegisteredPage() {
           </>
         ) : list.length === 0 ? (
           <EmptyState
-            icon={empty.icon}
+            icon={EMPTY_ICONS[tab]}
             title={empty.title}
             description={empty.description}
-            action={<LinkButton href="/explore">Görevlere göz at</LinkButton>}
+            action={<LinkButton href="/explore">{t.common.browseMissions}</LinkButton>}
           />
         ) : (
           list.map((m, i) => <RegistrationCard key={m.id} mission={m} tab={tab} primary={i === 0} />)

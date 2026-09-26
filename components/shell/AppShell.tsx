@@ -1,8 +1,12 @@
+"use client";
+
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/frontend/utils";
 import { ConnectWallet } from "../ConnectWallet";
+import { useT } from "../I18nProvider";
+import { LanguageSwitch } from "../LanguageSwitch";
 import { BottomTabs } from "./BottomTabs";
 import { Logo } from "./Logo";
 import { RightPanel } from "./RightPanel";
@@ -41,6 +45,7 @@ export function AppShell({
   wide?: boolean;
   hideRightPanel?: boolean;
 }) {
+  const t = useT();
   const right =
     actions ??
     (hideRightPanel ? (
@@ -56,14 +61,14 @@ export function AppShell({
       <SideNav />
       <main
         className={cn(
-          "min-w-0 flex-1 bg-canvas md:border-x-[1.5px] md:border-line",
+          "min-w-0 flex-1 bg-bg md:border-x-[1.5px] md:border-border",
           immersive ? "pb-28 md:pb-10" : "pb-24 md:pb-10",
           wide ? "max-w-[900px]" : "max-w-[600px]",
         )}
       >
         <header
           className={cn(
-            "sticky top-0 z-20 border-b-[1.5px] border-line bg-canvas/85 backdrop-blur",
+            "sticky top-0 z-20 border-b-[1.5px] border-border bg-bg/85 backdrop-blur",
             immersive && "hidden md:block",
           )}
         >
@@ -72,8 +77,8 @@ export function AppShell({
               {backHref && (
                 <Link
                   href={backHref}
-                  aria-label="Geri"
-                  className="grid size-9 shrink-0 place-items-center rounded-full hover:bg-ice"
+                  aria-label={t.common.back}
+                  className="grid size-9 shrink-0 place-items-center rounded-full hover:bg-border/40"
                 >
                   <ArrowLeft className="size-5" />
                 </Link>
@@ -87,7 +92,10 @@ export function AppShell({
                 {title}
               </h1>
             </div>
-            {right}
+            <div className="flex shrink-0 items-center gap-2">
+              <LanguageSwitch variant="toggle" className="md:hidden" />
+              {right}
+            </div>
           </div>
           {subheader}
         </header>

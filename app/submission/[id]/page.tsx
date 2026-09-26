@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { EmptyState } from "@/components/EmptyState";
+import { useT } from "@/components/I18nProvider";
 import { MonAmount } from "@/components/MonAmount";
 import { AppShell } from "@/components/shell/AppShell";
 import { useToast } from "@/components/Toaster";
@@ -29,6 +30,7 @@ function settleSec(hash: string) {
 export default function SubmissionPage() {
   const { id } = useParams<{ id: string }>();
   const toast = useToast();
+  const t = useT();
   const [sub, setSub] = useState<SubmissionView | null | undefined>(undefined);
   const [elapsed, setElapsed] = useState(0);
   // Old, already-resolved submissions skip the animation.
@@ -81,14 +83,14 @@ export default function SubmissionPage() {
     if (!showResult || !sub || toasted.current || instant) return;
     toasted.current = true;
     if (sub.result === "accepted")
-      toast({ kind: "success", title: `+${sub.rewardMon.toFixed(2)} MON`, description: "Ödeme cüzdanına gönderildi." });
-    else if (sub.result === "rejected") toast({ kind: "error", title: "Video reddedildi" });
-    else toast({ kind: "info", title: "Video incelemeye alındı" });
-  }, [showResult, sub, toast, instant]);
+      toast({ kind: "success", title: `+${sub.rewardMon.toFixed(2)} MON`, description: t.submission.toastPaid });
+    else if (sub.result === "rejected") toast({ kind: "error", title: t.submission.toastRejected });
+    else toast({ kind: "info", title: t.submission.toastReview });
+  }, [showResult, sub, toast, instant, t]);
 
   if (sub === undefined) {
     return (
-      <AppShell title="Doğrulama" immersive>
+      <AppShell title={t.submission.title} immersive>
         <Skeleton className="mt-4 aspect-video w-full rounded-2xl" />
         <Skeleton className="mt-4 h-48 w-full rounded-2xl" />
       </AppShell>
@@ -97,11 +99,11 @@ export default function SubmissionPage() {
 
   if (sub === null) {
     return (
-      <AppShell title="Doğrulama" backHref="/explore">
+      <AppShell title={t.submission.title} backHref="/explore">
         <EmptyState
           icon={FileQuestion}
-          title="Gönderim bulunamadı"
-          action={<LinkButton href="/registered">Kayıtlılarıma git</LinkButton>}
+          title={t.submission.notFound}
+          action={<LinkButton href="/registered">{t.submission.goToRegistered}</LinkButton>}
         />
       </AppShell>
     );
@@ -118,11 +120,11 @@ export default function SubmissionPage() {
   }
 
   const steps = [
-    "Yüklendi",
-    meta ? `Süre ${Math.round(meta.sec)} sn · ${meta.h}p` : "Süre kontrolü",
-    "Benzersiz (kopya değil)",
-    "Challenge geçerli",
-    "AI kriterleri kontrol ediyor",
+    t.submission.steps.uploaded,
+    meta ? t.submission.steps.duration(Math.round(meta.sec), meta.h) : t.submission.steps.durationCheck,
+    t.submission.steps.unique,
+    t.submission.steps.challenge,
+    t.submission.steps.ai,
   ];
 
   const nextMission = missions?.find(
@@ -130,20 +132,20 @@ export default function SubmissionPage() {
   );
   const nextHref = nextMission ? `/mission/${nextMission.id}` : "/explore";
   const score = sub.aiScore !== null ? `${Math.round(sub.aiScore * 100)}%` : "–";
-  const label = `Gönderim · Görev #${mission?.chainMissionId ?? "…"}`;
+  const label = t.submission.label(mission?.chainMissionId ?? "…");
 
   // ---------- result screens ----------
   if (showResult) {
     const accepted = sub.result === "accepted";
     const rejected = sub.result === "rejected";
     return (
-      <AppShell title="Doğrulama" backHref={`/mission/${sub.missionId}`} immersive>
+      <AppShell title={t.submission.title} backHref={`/mission/${sub.missionId}`} immersive>
         <div className="flex min-h-[calc(100dvh-8rem)] animate-toast-in flex-col md:min-h-[600px]">
           <div className="flex flex-1 flex-col items-center justify-center py-8 text-center">
             <span
               className={cn(
                 "grid size-24 animate-pop place-items-center rounded-full border-[1.5px] bg-surface",
-                accepted ? "border-lemon bg-lemon text-black" : rejected ? "border-danger text-danger" : "border-warning text-warning",
+                accepted ? "border-money text-money" : rejected ? "border-danger text-danger" : "border-warn text-warn",
               )}
             >
               {accepted ? (
@@ -155,28 +157,30 @@ export default function SubmissionPage() {
               )}
             </span>
             <MonoLabel className="mt-5">
-              {accepted ? "Kabul" : rejected ? "Reddedildi" : "İnceleniyor"} · AI skoru {score}
+              {t.submission.resultLabel[accepted ? "accepted" : rejected ? "rejected" : "review"]} · {t.submission.aiScore}{" "}
+              {score}
             </MonoLabel>
 
             {accepted && (
               <>
                 <MonAmount value={sub.rewardMon} sign size="xl" className="mt-2 text-6xl sm:text-7xl" />
-                <p className="mt-3 text-ink/75">
-                  <span className="font-mono">{shortAddr(sub.contributorAddress, 4, 4)}</span> adresine Monad
-                  üzerinden {sub.txHash ? "ödendi" : "ödenecek"}
+                <p className="mt-3 text-muted">
+                  {t.submission.paidTo(!!sub.txHash).before}
+                  <span className="font-mono">{shortAddr(sub.contributorAddress, 4, 4)}</span>
+                  {t.submission.paidTo(!!sub.txHash).after}
                 </p>
                 {sub.txHash ? (
                   <a
                     href={txUrl(sub.txHash)}
                     target="_blank"
                     rel="noreferrer"
-                    className="mt-4 inline-flex h-9 items-center rounded-xl border-[1.5px] border-line bg-surface px-3.5 font-mono text-xs hover:border-primary hover:text-accent"
+                    className="mt-4 inline-flex h-9 items-center rounded-xl border-[1.5px] border-border bg-surface px-3.5 font-mono text-xs hover:border-primary hover:text-link"
                   >
-                    tx {shortAddr(sub.txHash, 6, 4)} · {settleSec(sub.txHash)} sn
+                    tx {shortAddr(sub.txHash, 6, 4)} · {t.common.sec(settleSec(sub.txHash))}
                   </a>
                 ) : (
-                  <p className="mt-4 max-w-sm rounded-xl border-[1.5px] border-warning/50 bg-warning/15 px-4 py-2 text-sm">
-                    {sub.note ?? "Ödeme sıraya alındı."}
+                  <p className="mt-4 max-w-sm rounded-xl border-[1.5px] border-warn/50 bg-warn/15 px-4 py-2 text-sm">
+                    {sub.note ?? t.submission.payoutQueued}
                   </p>
                 )}
               </>
@@ -184,22 +188,23 @@ export default function SubmissionPage() {
 
             {rejected && (
               <>
-                <p className="mt-2 text-2xl font-bold">Bu video kabul edilmedi</p>
+                <p className="mt-2 text-2xl font-bold text-danger">{t.submission.rejectedTitle}</p>
                 <p className="mt-2 max-w-sm rounded-xl border-[1.5px] border-danger/40 bg-danger/15 px-4 py-3 text-sm text-danger">
                   {sub.rejectReason}
                 </p>
-                <p className="mt-3 font-mono text-xs text-ink/55">Reddedilen videolar yükleme limitinden düşülmez.</p>
+                <p className="mt-3 font-mono text-xs text-muted">{t.submission.rejectedNote}</p>
               </>
             )}
 
             {!accepted && !rejected && (
               <>
-                <p className="mt-2 text-2xl font-bold">Manuel incelemeye alındı</p>
-                <p className="mt-2 max-w-sm rounded-xl border-[1.5px] border-warning/50 bg-warning/15 px-4 py-3 text-sm text-ink/80">
+                <p className="mt-2 text-2xl font-bold">{t.submission.reviewTitle}</p>
+                <p className="mt-2 max-w-sm rounded-xl border-[1.5px] border-warn/50 bg-warn/15 px-4 py-3 text-sm text-text/80">
                   {sub.note ?? (
                     <>
-                      AI skoru kabul eşiğine yakın. Moderatör onaylarsa{" "}
-                      <b className="text-lemon">{formatMon(sub.rewardMon)} MON</b> otomatik gönderilir.
+                      {t.submission.reviewBefore}
+                      <b className="text-money">{formatMon(sub.rewardMon)} MON</b>
+                      {t.submission.reviewAfter}
                     </>
                   )}
                 </p>
@@ -209,18 +214,18 @@ export default function SubmissionPage() {
 
           <div className="space-y-3 pb-2">
             {accepted && (
-              <div className="flex items-center justify-between rounded-2xl border-[1.5px] border-line bg-surface px-4 py-3">
-                <span>Bakiye</span>
+              <div className="flex items-center justify-between rounded-2xl border-[1.5px] border-border bg-surface px-4 py-3">
+                <span>{t.submission.balance}</span>
                 {balance !== null ? <MonAmount value={balance} size="sm" /> : <Skeleton className="h-5 w-20" />}
               </div>
             )}
             {rejected ? (
               <LinkButton href={`/mission/${sub.missionId}/capture`} size="lg" className="h-14 w-full font-bold">
-                Tekrar dene
+                {t.common.tryAgain}
               </LinkButton>
             ) : (
               <LinkButton href={nextHref} size="lg" className="h-14 w-full font-bold">
-                Sonraki görev
+                {t.common.nextMission}
               </LinkButton>
             )}
             {accepted && sub.txHash ? (
@@ -228,9 +233,9 @@ export default function SubmissionPage() {
                 href={txUrl(sub.txHash)}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex h-14 w-full items-center justify-center rounded-full border-[1.5px] border-line bg-surface font-bold hover:bg-ice"
+                className="inline-flex h-14 w-full items-center justify-center rounded-full border-[1.5px] border-border bg-surface font-bold hover:bg-border/40"
               >
-                Explorer&apos;da gör
+                {t.common.viewOnExplorer}
               </a>
             ) : (
               <LinkButton
@@ -239,7 +244,7 @@ export default function SubmissionPage() {
                 size="lg"
                 className="h-14 w-full font-bold"
               >
-                {rejected ? "Sonraki görev" : "Kayıtlılarım"}
+                {rejected ? t.common.nextMission : t.common.registered}
               </LinkButton>
             )}
           </div>
@@ -250,7 +255,7 @@ export default function SubmissionPage() {
 
   // ---------- verifying ----------
   return (
-    <AppShell title="Doğrulama" backHref={`/mission/${sub.missionId}`} immersive>
+    <AppShell title={t.submission.title} backHref={`/mission/${sub.missionId}`} immersive>
       <div className="pt-2 md:pt-0">
         <MonoLabel>{label}</MonoLabel>
         <video
@@ -262,11 +267,11 @@ export default function SubmissionPage() {
           onLoadedMetadata={(e) =>
             setMeta({ sec: e.currentTarget.duration, h: e.currentTarget.videoHeight })
           }
-          className="mt-3 aspect-[16/10] w-full rounded-2xl bg-black object-cover"
+          className="mt-3 aspect-[16/10] w-full rounded-2xl bg-bg object-cover"
         />
 
-        <h2 className="mt-6 text-2xl font-bold tracking-tight">Videon kontrol ediliyor…</h2>
-        <ol className="mt-4 divide-y divide-sky rounded-2xl border-[1.5px] border-line bg-surface">
+        <h2 className="mt-6 text-2xl font-bold tracking-tight">{t.submission.checking}</h2>
+        <ol className="mt-4 divide-y divide-border rounded-2xl border-[1.5px] border-border bg-surface">
           {steps.map((text, i) => {
             const st = stepState(i);
             return (
@@ -274,13 +279,13 @@ export default function SubmissionPage() {
                 key={i}
                 className={cn(
                   "flex items-center justify-between gap-3 px-4 py-3.5",
-                  st === "active" && "font-bold text-pink",
-                  st === "waiting" && "text-ink/40",
+                  st === "active" && "font-bold text-primary",
+                  st === "waiting" && "text-muted",
                 )}
               >
                 <span>{text}</span>
                 {st === "done" ? (
-                  <Check className="size-5 animate-pop text-lemon" strokeWidth={2.5} />
+                  <Check className="size-5 animate-pop text-money" strokeWidth={2.5} />
                 ) : st === "active" ? (
                   <Loader2 className="size-5 animate-spin" />
                 ) : (
@@ -290,24 +295,23 @@ export default function SubmissionPage() {
             );
           })}
         </ol>
-        <p className="mt-4 text-sm text-ink/65">
-          Genelde 10 saniyeden kısa sürer. Kabul edilirse {formatMon(sub.rewardMon)} MON cüzdanına otomatik
-          gönderilir.
+        <p className="mt-4 text-sm text-muted">
+          {t.submission.usually(formatMon(sub.rewardMon))}
         </p>
 
         {!skip && (
           <div className="mt-10 text-center">
             <button
               onClick={() => setSkip(true)}
-              className="font-mono text-xs text-ink/60 underline underline-offset-4 hover:text-accent"
+              className="font-mono text-xs text-muted underline underline-offset-4 hover:text-link"
             >
-              [ demo: sonuca atla → ]
+              {t.submission.skip}
             </button>
           </div>
         )}
         <p className="mt-6 text-center">
-          <Link href="/registered" className="text-sm text-ink/60 hover:text-accent">
-            Arka planda devam etsin → Kayıtlılarım
+          <Link href="/registered" className="text-sm text-muted hover:text-link">
+            {t.submission.background}
           </Link>
         </p>
       </div>

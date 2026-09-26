@@ -4,6 +4,7 @@ import { CameraOff, FolderOpen, Loader2, RotateCcw, Send, SwitchCamera, Video, X
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLocale, useT } from "@/components/I18nProvider";
 import { MonAmount } from "@/components/MonAmount";
 import { useToast } from "@/components/Toaster";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { getMission, uploadSubmission } from "@/lib/frontend/api";
 import { useApi, useIsClient, useWalletStatus } from "@/lib/frontend/hooks";
 import { cn, randomHex } from "@/lib/frontend/utils";
 import { DEMO_VIDEOS } from "@/lib/mock/missions";
+import { DEMO_VIDEO_LABELS_EN } from "@/lib/mock/missions.en";
 
 type Phase = "init" | "denied" | "ready" | "recording" | "preview" | "uploading";
 
@@ -51,6 +53,8 @@ export default function CapturePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const toast = useToast();
+  const t = useT();
+  const locale = useLocale();
   const { data: mission } = useApi(() => getMission(id), [id]);
   const challenge = useChallenge();
   const { address } = useWalletStatus();
@@ -117,7 +121,7 @@ export default function CapturePage() {
     const stream = streamRef.current;
     if (!stream) return;
     if (typeof MediaRecorder === "undefined") {
-      toast({ kind: "error", title: "Tarayıcın kayıt desteklemiyor", description: "Hazır video seçebilirsin." });
+      toast({ kind: "error", title: t.capture.noRecorder, description: t.capture.noRecorderDesc });
       setSheetOpen(true);
       return;
     }
@@ -170,7 +174,7 @@ export default function CapturePage() {
       const blob = await (await fetch(url)).blob();
       applyFile(new File([blob], name, { type: blob.type || "video/mp4" }));
     } catch {
-      toast({ kind: "error", title: "Video yüklenemedi" });
+      toast({ kind: "error", title: t.capture.videoLoadFailed });
     } finally {
       setLoadingDemo(null);
     }
@@ -197,7 +201,7 @@ export default function CapturePage() {
       stopStream();
       router.push(`/submission/${sub.id}`);
     } catch (e) {
-      toast({ kind: "error", title: "Yükleme başarısız", description: (e as Error).message });
+      toast({ kind: "error", title: t.capture.uploadFailed, description: (e as Error).message });
       setPhase("preview");
     }
   }
@@ -207,7 +211,7 @@ export default function CapturePage() {
   const reviewing = phase === "preview" || phase === "uploading";
   const tooShort = !fromPicker && elapsed < MIN_SEC;
   const pct = Math.min(100, (elapsed / MAX_SEC) * 100);
-  const hint = mission?.criteria.at(-1) ?? "Nesneyi ve elini kadrajda tut";
+  const hint = mission?.criteria.at(-1) ?? t.capture.defaultHint;
 
   const fileInput = (
     <input
@@ -226,23 +230,23 @@ export default function CapturePage() {
   const demoList = (
     <div className="space-y-2">
       <Button className="w-full" size="lg" onClick={() => fileInputRef.current?.click()}>
-        <FolderOpen className="size-5" /> Galeriden video seç
+        <FolderOpen className="size-5" /> {t.capture.pickFromGallery}
       </Button>
-      <p className="pt-2 font-mono text-[11px] tracking-wider text-ink/60 uppercase">Örnek videolar</p>
+      <p className="pt-2 font-mono text-[11px] tracking-wider text-muted uppercase">{t.capture.sampleVideos}</p>
       <div className="grid grid-cols-2 gap-2">
         {DEMO_VIDEOS.map((v) => (
           <button
             key={v.name}
             onClick={() => pickDemo(v.name, v.url)}
             disabled={!!loadingDemo}
-            className="inline-flex h-10 items-center gap-2 rounded-xl border-[1.5px] border-line bg-surface px-3 text-left text-sm hover:bg-ice disabled:opacity-50"
+            className="inline-flex h-10 items-center gap-2 rounded-xl border-[1.5px] border-border bg-surface px-3 text-left text-sm hover:bg-border/40 disabled:opacity-50"
           >
             {loadingDemo === v.name ? (
               <Loader2 className="size-4 shrink-0 animate-spin" />
             ) : (
               <Video className="size-4 shrink-0" />
             )}
-            <span className="truncate">{v.label}</span>
+            <span className="truncate">{locale === "en" ? (DEMO_VIDEO_LABELS_EN[v.name] ?? v.label) : v.label}</span>
           </button>
         ))}
       </div>
@@ -252,41 +256,41 @@ export default function CapturePage() {
           disabled={!!loadingDemo}
           className="h-7 rounded-full border border-dashed border-danger/60 px-2.5 font-mono text-[10px] text-danger hover:bg-danger/15"
         >
-          demo: red senaryosu
+          {t.capture.demoReject}
         </button>
         <button
           onClick={() => pickDemo("review-bottle-drop.mp4", "/demo/bottle-drop.mp4")}
           disabled={!!loadingDemo}
-          className="h-7 rounded-full border border-dashed border-warning/60 px-2.5 font-mono text-[10px] text-warning hover:bg-warning/15"
+          className="h-7 rounded-full border border-dashed border-warn/60 px-2.5 font-mono text-[10px] text-warn hover:bg-warn/15"
         >
-          demo: inceleme senaryosu
+          {t.capture.demoReview}
         </button>
       </div>
     </div>
   );
 
   return (
-    <div className="fixed inset-0 z-40 bg-canvas text-white">
+    <div className="fixed inset-0 z-40 bg-bg text-text">
       <div className="mx-auto flex h-full max-w-[480px] flex-col px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))]">
         {/* Top bar */}
         <div className="flex h-10 items-center justify-between gap-3">
           <Link href={`/mission/${id}`} className="inline-flex items-center gap-1.5 text-sm font-medium">
-            <X className="size-5" /> İptal
+            <X className="size-5" /> {t.common.cancel}
           </Link>
-          <span className="inline-flex h-8 items-center rounded-full border-[1.5px] border-lemon px-3 font-mono text-xs text-lemon">
-            challenge {challenge.code} · {fmt(challenge.left)}
+          <span className="inline-flex h-8 items-center rounded-full border-[1.5px] border-primary px-3 font-mono text-xs text-text">
+            {t.capture.challenge} {challenge.code} · {fmt(challenge.left)}
           </span>
         </div>
 
         {mission && (
           <div className="mt-2 flex items-center justify-between gap-3 text-sm">
-            <span className="truncate text-white/80">{mission.title}</span>
+            <span className="truncate text-muted">{mission.title}</span>
             <MonAmount value={mission.rewardMon} size="sm" className="shrink-0" />
           </div>
         )}
 
         {/* Viewfinder */}
-        <div className="relative mt-3 min-h-0 flex-1 overflow-hidden rounded-2xl border-[1.5px] border-dashed border-white/50">
+        <div className="relative mt-3 min-h-0 flex-1 overflow-hidden rounded-2xl border-[1.5px] border-dashed border-border">
           <video
             ref={liveRef}
             muted
@@ -306,27 +310,27 @@ export default function CapturePage() {
               loop
               playsInline
               muted
-              className="absolute inset-0 size-full bg-black object-contain"
+              className="absolute inset-0 size-full bg-bg object-contain"
             />
           )}
 
           {phase === "init" && (
             <div className="absolute inset-0 grid place-items-center">
-              <div className="flex flex-col items-center gap-2 text-sm text-white/80">
-                <Loader2 className="size-6 animate-spin" /> Kamera açılıyor…
+              <div className="flex flex-col items-center gap-2 text-sm text-muted">
+                <Loader2 className="size-6 animate-spin" /> {t.capture.cameraOpening}
               </div>
             </div>
           )}
 
           {denied && (
-            <div className="absolute inset-0 overflow-y-auto bg-ice p-4 text-ink">
+            <div className="absolute inset-0 overflow-y-auto bg-surface p-4 text-text">
               <div className="flex items-center gap-3">
-                <span className="grid size-10 shrink-0 place-items-center rounded-full border-[1.5px] border-line bg-surface">
-                  <CameraOff className="size-5 text-pink" />
+                <span className="grid size-10 shrink-0 place-items-center rounded-full border-[1.5px] border-border bg-surface">
+                  <CameraOff className="size-5 text-danger" />
                 </span>
                 <div>
-                  <p className="font-bold">Kamera izni yok</p>
-                  <p className="text-sm text-ink/70">Hazır bir video seçerek devam edebilirsin.</p>
+                  <p className="font-bold">{t.capture.noPermission}</p>
+                  <p className="text-sm text-muted">{t.capture.noPermissionDesc}</p>
                 </div>
               </div>
               <div className="mt-4">{demoList}</div>
@@ -335,9 +339,9 @@ export default function CapturePage() {
                   setPhase("init");
                   startCamera();
                 }}
-                className="mt-4 w-full text-center text-sm font-bold text-accent underline underline-offset-2"
+                className="mt-4 w-full text-center text-sm font-bold text-link underline underline-offset-2"
               >
-                Kamerayı tekrar dene
+                {t.capture.retryCamera}
               </button>
             </div>
           )}
@@ -348,7 +352,7 @@ export default function CapturePage() {
                 <span
                   className={cn(
                     "inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 font-mono text-sm font-bold tabular-nums",
-                    phase === "recording" ? "bg-danger text-white" : "bg-surface/90 text-ink",
+                    phase === "recording" ? "bg-danger text-white" : "bg-surface/90 text-text",
                   )}
                 >
                   <span className={cn("size-2 rounded-full", phase === "recording" ? "animate-pulse bg-white" : "bg-danger")} />
@@ -365,10 +369,10 @@ export default function CapturePage() {
             <span
               className={cn(
                 "absolute top-3 left-3 rounded-full px-3 py-1 font-mono text-xs font-bold",
-                tooShort ? "bg-danger text-white" : "bg-success text-white",
+                tooShort ? "bg-danger text-white" : "bg-money text-white",
               )}
             >
-              {fmt(elapsed)} {tooShort && `· min ${MIN_SEC} sn`}
+              {fmt(elapsed)} {tooShort && `· ${t.capture.min(MIN_SEC)}`}
             </span>
           )}
         </div>
@@ -376,25 +380,25 @@ export default function CapturePage() {
         {/* Duration track: 0 — min 10 — 20 */}
         {!denied && (
           <div className="mt-4">
-            <div className="relative h-1.5 rounded-full bg-white/20">
+            <div className="relative h-1.5 rounded-full bg-border">
               <div
                 className={cn(
                   "h-full rounded-full transition-[width] duration-100",
-                  elapsed >= MIN_SEC ? "bg-lemon" : "bg-pink",
+                  elapsed >= MIN_SEC ? "bg-money" : "bg-primary",
                 )}
                 style={{ width: `${reviewing && fromPicker ? 100 : pct}%` }}
               />
               <span
-                className="absolute -top-1 h-3.5 w-0.5 rounded bg-lemon"
+                className="absolute -top-1 h-3.5 w-0.5 rounded bg-text"
                 style={{ left: `${(MIN_SEC / MAX_SEC) * 100}%` }}
               />
             </div>
-            <div className="relative mt-1.5 flex justify-between font-mono text-[11px] text-white/70">
-              <span>0 sn</span>
+            <div className="relative mt-1.5 flex justify-between font-mono text-[11px] text-muted">
+              <span>{t.common.sec(0)}</span>
               <span className="absolute -translate-x-1/2" style={{ left: `${(MIN_SEC / MAX_SEC) * 100}%` }}>
-                min {MIN_SEC} sn
+                {t.capture.min(MIN_SEC)}
               </span>
-              <span>{MAX_SEC} sn</span>
+              <span>{t.common.sec(MAX_SEC)}</span>
             </div>
           </div>
         )}
@@ -405,18 +409,18 @@ export default function CapturePage() {
             <button
               onClick={retake}
               disabled={phase === "uploading"}
-              className="inline-flex h-14 items-center justify-center gap-2 rounded-full border-[1.5px] border-white font-bold disabled:opacity-50"
+              className="inline-flex h-14 items-center justify-center gap-2 rounded-full border-[1.5px] border-text font-bold disabled:opacity-50"
             >
-              <RotateCcw className="size-4" /> Tekrar çek
+              <RotateCcw className="size-4" /> {t.capture.retake}
             </button>
             <Button size="lg" className="h-14 font-bold" onClick={submit} disabled={phase === "uploading" || tooShort}>
               {phase === "uploading" ? (
                 <>
-                  <Loader2 className="size-4 animate-spin" /> Yükleniyor
+                  <Loader2 className="size-4 animate-spin" /> {t.capture.uploading}
                 </>
               ) : (
                 <>
-                  <Send className="size-4" /> Gönder
+                  <Send className="size-4" /> {t.capture.send}
                 </>
               )}
             </Button>
@@ -424,14 +428,14 @@ export default function CapturePage() {
         ) : (
           !denied && (
             <div className="mt-4 grid grid-cols-3 items-center">
-              <button onClick={retake} disabled={phase !== "recording"} className="justify-self-start text-sm text-white/80 disabled:opacity-40">
-                Tekrar çek
+              <button onClick={retake} disabled={phase !== "recording"} className="justify-self-start text-sm text-muted disabled:opacity-40">
+                {t.capture.retake}
               </button>
               <button
                 onClick={phase === "recording" ? stopRecording : startRecording}
                 disabled={!live}
-                aria-label={phase === "recording" ? "Kaydı durdur" : "Kaydı başlat"}
-                className="grid size-20 place-items-center justify-self-center rounded-full border-4 border-white disabled:opacity-40"
+                aria-label={phase === "recording" ? t.capture.stop : t.capture.start}
+                className="grid size-20 place-items-center justify-self-center rounded-full border-4 border-text disabled:opacity-40"
               >
                 <span
                   className={cn(
@@ -446,9 +450,9 @@ export default function CapturePage() {
                   setFacing((f) => (f === "user" ? "environment" : "user"));
                 }}
                 disabled={phase !== "ready"}
-                className="inline-flex items-center gap-1.5 justify-self-end text-sm text-white/80 disabled:opacity-40"
+                className="inline-flex items-center gap-1.5 justify-self-end text-sm text-muted disabled:opacity-40"
               >
-                <SwitchCamera className="size-4" /> Çevir
+                <SwitchCamera className="size-4" /> {t.capture.flip}
               </button>
             </div>
           )
@@ -458,23 +462,23 @@ export default function CapturePage() {
           <button
             onClick={() => setSheetOpen(true)}
             disabled={phase === "recording"}
-            className="mt-4 inline-flex items-center justify-center gap-2 self-center rounded-full border-[1.5px] border-white/40 px-4 py-2 text-sm hover:border-white disabled:opacity-40"
+            className="mt-4 inline-flex items-center justify-center gap-2 self-center rounded-full border-[1.5px] border-border px-4 py-2 text-sm hover:border-text disabled:opacity-40"
           >
-            <FolderOpen className="size-4" /> Hazır video seç
+            <FolderOpen className="size-4" /> {t.capture.pickReady}
           </button>
         )}
       </div>
 
       {/* Ready-made video sheet */}
       {sheetOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70" onClick={() => setSheetOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-bg/70" onClick={() => setSheetOpen(false)}>
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-[480px] animate-toast-in rounded-t-3xl border-[1.5px] border-b-0 border-line bg-ice p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-ink"
+            className="w-full max-w-[480px] animate-toast-in rounded-t-3xl border-[1.5px] border-b-0 border-border bg-surface p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-text"
           >
             <div className="mb-4 flex items-center justify-between">
-              <p className="text-lg font-bold">Hazır video seç</p>
-              <button onClick={() => setSheetOpen(false)} aria-label="Kapat" className="grid size-9 place-items-center rounded-full hover:bg-canvas">
+              <p className="text-lg font-bold">{t.capture.pickReady}</p>
+              <button onClick={() => setSheetOpen(false)} aria-label={t.common.close} className="grid size-9 place-items-center rounded-full hover:bg-bg">
                 <X className="size-5" />
               </button>
             </div>

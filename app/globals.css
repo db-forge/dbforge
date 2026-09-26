@@ -1,21 +1,18 @@
 @import "tailwindcss";
 
 /* DBForge design tokens (Tailwind v4: tokens live here instead of tailwind.config) */
-/* Dark theme: black canvas with purple, pink and lemon accent blocks. */
+/* Dark theme: near-black canvas, purple primary, blue links, green money. */
 @theme {
-  --color-canvas: #000000; /* page background */
-  --color-surface: #0e0a13; /* cards, inputs */
-  --color-ice: #1a1322; /* subtle raised fill: chips, hover, stat boxes */
-  --color-line: #33264a; /* 1.5px card borders */
-  --color-sky: #261c35; /* thin dividers, progress track */
-  --color-ink: #f7f2ff; /* foreground text */
-  --color-primary: #9929ea; /* purple fills: buttons, blocks */
-  --color-accent: #c07bff; /* purple text on dark (links, labels) */
-  --color-pink: #ff5fcf; /* personal progress, register, highlights */
-  --color-lemon: #faeb92; /* MON figures, overall progress, highlights */
-  --color-success: #22c55e;
-  --color-danger: #f04438;
-  --color-warning: #f79009;
+  --color-bg: #15151c; /* page background (never pure black) */
+  --color-surface: #1d1d27; /* cards, panels, inputs */
+  --color-border: #2c2c3a; /* all borders, dividers, progress track */
+  --color-text: #f4f4f7; /* main text */
+  --color-muted: #8b8b9e; /* handles, timestamps, secondary info */
+  --color-primary: #9400ff; /* purple: buttons, active states, progress fill */
+  --color-link: #6cb4ff; /* text links, hashtags */
+  --color-money: #34d399; /* MON figures, accepted */
+  --color-warn: #f59e0b; /* "incelemede" only */
+  --color-danger: #f87171; /* "reddedildi" only */
 
   --font-sans: var(--font-grotesk), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, monospace;
@@ -51,8 +48,8 @@
 
 html,
 body {
-  background: var(--color-canvas);
-  color: var(--color-ink);
+  background: var(--color-bg);
+  color: var(--color-text);
   color-scheme: dark;
 }
 

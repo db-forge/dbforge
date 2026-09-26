@@ -1,5 +1,6 @@
 // Mock contract calls for the UI. Will be replaced by real helpers from
 // lib/monad once the escrow contract is deployed. Hashes are fake 0x values.
+import { t } from "./i18n";
 import { randomHex, sleep } from "./utils";
 
 export type TxStage = "idle" | "awaiting_signature" | "pending" | "success" | "error";
@@ -37,7 +38,7 @@ export function createMissionTx(
   return simulateTx(
     onStage,
     params.title.toLowerCase().includes("fail"),
-    "İşlem reddedildi: kullanıcı imzayı iptal etti.",
+    t().tx.signerRejected,
   );
 }
 

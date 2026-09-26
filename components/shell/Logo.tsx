@@ -6,7 +6,7 @@ export function LogoMark({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "grid size-9 place-items-center rounded-xl border-[1.5px] border-line bg-surface font-mono text-sm font-bold text-ink",
+        "grid size-9 place-items-center rounded-xl border-[1.5px] border-border bg-surface font-mono text-sm font-bold text-text",
         className,
       )}
     >
@@ -29,10 +29,10 @@ export function Logo({
     <div className="flex min-w-0 items-baseline gap-1.5">
       <Link href={href} className="shrink-0">
         {compact ? <LogoMark /> : <span className="text-2xl font-bold tracking-tight">
-            DB<span className="text-pink">Forge</span>
+            DB<span className="text-primary">Forge</span>
           </span>}
       </Link>
-      {crumb && <span className="truncate text-sm text-ink/60">/ {crumb}</span>}
+      {crumb && <span className="truncate text-sm text-muted">/ {crumb}</span>}
     </div>
   );
 }

@@ -11,19 +11,22 @@ import { LinkButton } from "@/components/ui/button";
 import { Card, MonoLabel, Skeleton } from "@/components/ui/card";
 import { getBuyerMissions } from "@/lib/frontend/api";
 import { useApi } from "@/lib/frontend/hooks";
+import { CompanyAvatar } from "@/components/CompanyAvatar";
+import { useT } from "@/components/I18nProvider";
 
 export default function BuyerDashboardPage() {
   const { data: missions, loading } = useApi(getBuyerMissions);
+  const t = useT();
 
   return (
-    <BuyerShell crumb="Görevlerim">
+    <BuyerShell crumb={t.common.myMissions}>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <MonoLabel>Şirket paneli</MonoLabel>
-          <h1 className="text-3xl font-bold tracking-tight">Görevlerim</h1>
+          <MonoLabel>{t.buyer.panel}</MonoLabel>
+          <h1 className="text-3xl font-bold tracking-tight">{t.common.myMissions}</h1>
         </div>
         <LinkButton href="/buyer/new" size="lg">
-          <Plus className="size-5" /> Görev oluştur
+          <Plus className="size-5" /> {t.common.createMission}
         </LinkButton>
       </div>
 
@@ -35,17 +38,20 @@ export default function BuyerDashboardPage() {
               return (
                 <Link key={m.id} href={`/buyer/missions/${m.id}`} className="group">
                   <Card className="overflow-hidden transition-colors group-hover:border-primary">
-                    <img src={m.coverUrl} alt="" className="aspect-[16/9] w-full border-b-[1.5px] border-line object-cover" />
+                    <img src={m.coverUrl} alt="" className="aspect-[16/9] w-full border-b-[1.5px] border-border object-cover" />
                     <div className="p-4">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="truncate font-mono text-xs text-ink/60">{m.company.name}</span>
+                        <span className="flex min-w-0 items-center gap-2">
+                          <CompanyAvatar company={m.company} className="size-6 rounded-md" />
+                          <span className="truncate font-mono text-xs text-muted">{m.company.name}</span>
+                        </span>
                         <StatusBadge status={complete ? "completed" : "active"} />
                       </div>
-                      <p className="mt-1 truncate text-lg font-bold group-hover:text-accent">{m.title}</p>
+                      <p className="mt-1 truncate text-lg font-bold text-text group-hover:underline">{m.title}</p>
                       <div className="mt-3 flex items-baseline justify-between">
                         <span className="font-bold tabular-nums">
                           {m.acceptedCount}
-                          <span className="text-ink/40">/{m.targetCount}</span>
+                          <span className="text-muted">/{m.targetCount}</span>
                         </span>
                         <MonAmount value={m.acceptedCount * m.rewardMon} size="sm" />
                       </div>
@@ -53,7 +59,6 @@ export default function BuyerDashboardPage() {
                         value={m.acceptedCount}
                         max={m.targetCount}
                         size="sm"
-                        tone={complete ? "success" : "primary"}
                         className="mt-2"
                       />
                     </div>

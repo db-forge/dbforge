@@ -8,25 +8,27 @@ import { getWallet } from "@/lib/frontend/api";
 import { useApi, useDisplayBalance, useIsClient, useWalletStatus } from "@/lib/frontend/hooks";
 import { cn, formatMon, shortAddr } from "@/lib/frontend/utils";
 import { monadTestnet } from "@/lib/frontend/wagmi";
+import { useT } from "./I18nProvider";
 import { Button } from "./ui/button";
 import { useToast } from "./Toaster";
 
 export function useConnectWallet() {
   const { connectors, mutate: connect, isPending } = useConnect();
   const toast = useToast();
+  const t = useT();
 
   function connectWallet() {
     const hasInjected = typeof window !== "undefined" && "ethereum" in window;
     const connector = connectors.find((c) => (hasInjected ? c.type === "injected" : c.type === "mock"));
     if (!connector) return;
     if (!hasInjected) {
-      toast({ kind: "info", title: "MetaMask bulunamadı", description: "Demo cüzdan ile bağlanıldı." });
+      toast({ kind: "info", title: t.connect.noMetamask, description: t.connect.demoWallet });
     }
     connect(
       { connector, chainId: monadTestnet.id },
       {
-        onSuccess: () => toast({ kind: "success", title: "Cüzdan bağlandı" }),
-        onError: (e) => toast({ kind: "error", title: "Bağlanamadı", description: e.message.split("\n")[0] }),
+        onSuccess: () => toast({ kind: "success", title: t.connect.connected }),
+        onError: (e) => toast({ kind: "error", title: t.connect.connectFailed, description: e.message.split("\n")[0] }),
       },
     );
   }
@@ -37,12 +39,13 @@ export function useConnectWallet() {
 export function useSwitchToMonad() {
   const { mutate: switchChain, isPending } = useSwitchChain();
   const toast = useToast();
+  const t = useT();
   return {
     isPending,
     switchToMonad: () =>
       switchChain(
         { chainId: monadTestnet.id },
-        { onError: () => toast({ kind: "error", title: "Ağ değiştirilemedi" }) },
+        { onError: () => toast({ kind: "error", title: t.connect.switchFailed }) },
       ),
   };
 }
@@ -60,6 +63,7 @@ export function ConnectWallet({ compact = false, label }: { compact?: boolean; l
   const displayBalance = useDisplayBalance(wallet?.balanceMon);
   const [open, setOpen] = useState(false);
   const mounted = useIsClient();
+  const t = useT();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -71,7 +75,7 @@ export function ConnectWallet({ compact = false, label }: { compact?: boolean; l
     return () => document.removeEventListener("mousedown", onDown);
   }, [open]);
 
-  if (!mounted) return <div className={cn("h-10 rounded-xl bg-sky/40", compact ? "w-24" : "w-40")} />;
+  if (!mounted) return <div className={cn("h-10 rounded-xl bg-border/40", compact ? "w-24" : "w-40")} />;
 
   if (!isConnected) {
     return (
@@ -79,12 +83,12 @@ export function ConnectWallet({ compact = false, label }: { compact?: boolean; l
         onClick={connectWallet}
         disabled={isPending}
         className={cn(
-          "inline-flex h-10 shrink-0 items-center gap-2 border-[1.5px] border-line bg-surface px-4 text-sm font-bold hover:bg-ice disabled:opacity-50",
+          "inline-flex h-10 shrink-0 items-center gap-2 border-[1.5px] border-border bg-surface px-4 text-sm font-bold hover:bg-border/40 disabled:opacity-50",
           compact ? "rounded-full" : "rounded-xl",
         )}
       >
         <Wallet className="size-4" />
-        {isPending ? "Bağlanıyor…" : compact ? "Bağla" : "Cüzdan bağla"}
+        {isPending ? t.connect.connecting : compact ? t.connect.connectShort : t.connect.connect}
       </button>
     );
   }
@@ -93,7 +97,7 @@ export function ConnectWallet({ compact = false, label }: { compact?: boolean; l
     return (
       <Button variant="danger" onClick={switchToMonad} disabled={switching} size={compact ? "sm" : "md"}>
         <AlertTriangle className="size-4" />
-        {compact ? "Ağı değiştir" : "Monad Testnet'e geç"}
+        {compact ? t.connect.switchShort : t.connect.switchToMonad}
       </Button>
     );
   }
@@ -105,29 +109,29 @@ export function ConnectWallet({ compact = false, label }: { compact?: boolean; l
       <button
         onClick={() => setOpen((o) => !o)}
         className={cn(
-          "flex h-10 items-center gap-1.5 border-[1.5px] border-line bg-surface px-3.5 font-mono text-sm hover:bg-ice",
+          "flex h-10 items-center gap-1.5 border-[1.5px] border-border bg-surface px-3.5 font-mono text-sm hover:bg-border/40",
           compact ? "rounded-full" : "rounded-xl",
         )}
       >
         {!compact && (
           <>
             <span className="max-w-40 truncate">{label ?? shortAddr(address, 4, 4)}</span>
-            <span className="text-ink/40">·</span>
+            <span className="text-muted">·</span>
           </>
         )}
-        <span className="font-bold text-accent tabular-nums">{balance}</span>
-        <span className="text-xs font-bold text-accent">MON</span>
+        <span className="font-bold text-money tabular-nums">{balance}</span>
+        <span className="text-xs font-bold text-money">MON</span>
         {!compact && <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} />}
       </button>
       {open && (
-        <div className="absolute right-0 z-40 mt-2 w-56 overflow-hidden rounded-2xl border-[1.5px] border-line bg-surface p-1.5">
-          <p className="px-3 pt-1.5 pb-2 font-mono text-[11px] text-ink/60">{shortAddr(address, 6, 6)}</p>
+        <div className="absolute right-0 z-40 mt-2 w-56 overflow-hidden rounded-2xl border-[1.5px] border-border bg-surface p-1.5">
+          <p className="px-3 pt-1.5 pb-2 font-mono text-[11px] text-muted">{shortAddr(address, 6, 6)}</p>
           <Link
             href="/wallet"
             onClick={() => setOpen(false)}
-            className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm hover:bg-ice"
+            className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm hover:bg-border/40"
           >
-            <Wallet className="size-4" /> Cüzdanım
+            <Wallet className="size-4" /> {t.connect.myWallet}
           </Link>
           <button
             onClick={() => {
@@ -136,7 +140,7 @@ export function ConnectWallet({ compact = false, label }: { compact?: boolean; l
             }}
             className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-danger hover:bg-danger/15"
           >
-            <LogOut className="size-4" /> Bağlantıyı kes
+            <LogOut className="size-4" /> {t.connect.disconnect}
           </button>
         </div>
       )}
