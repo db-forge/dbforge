@@ -8,6 +8,8 @@ export class ApiRequestError extends Error {
     public status: number,
     public code: string,
     message: string,
+    /** `error.details` from the envelope, e.g. `{ fields }` for VALIDATION_FAILED. */
+    public details?: unknown,
   ) {
     super(message);
   }
@@ -29,7 +31,12 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   const body = await res.json().catch(() => null);
   if (!res.ok) {
     const code: string = body?.error?.code ?? `HTTP_${res.status}`;
-    throw new ApiRequestError(res.status, code, errorMessage(code, body?.error?.message ?? t().errors.requestFailed));
+    throw new ApiRequestError(
+      res.status,
+      code,
+      errorMessage(code, body?.error?.message ?? t().errors.requestFailed),
+      body?.error?.details ?? (body?.error?.fields ? { fields: body.error.fields } : undefined),
+    );
   }
   return body as T;
 }

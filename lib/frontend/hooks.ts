@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { useBalance, useChainId, useConnection } from "wagmi";
+import { useBalance, useChainId, useConnection, useSignMessage } from "wagmi";
 import { onDataChange } from "./api";
+import { demoSignature, getSessionState, subscribeSession, type SessionState } from "./auth";
 import { IS_LIVE } from "./config";
 import { t } from "./i18n";
 import { monadTestnet } from "./wagmi";
@@ -88,4 +89,33 @@ export function useDisplayBalance(mockBalance: number | null | undefined) {
   const { onchainBalance } = useWalletStatus();
   if (IS_LIVE && onchainBalance !== null) return onchainBalance;
   return mockBalance ?? null;
+}
+
+const LOADING_SESSION: SessionState = { status: "loading", session: null };
+
+/** Current auth session (company or contributor). `loading` until the first check is done. */
+export function useSession() {
+  const state = useSyncExternalStore(subscribeSession, getSessionState, () => LOADING_SESSION);
+  return { ...state, loading: state.status === "loading" };
+}
+
+/**
+ * Signs a server-built SIWE message with the connected wallet. The wagmi demo
+ * connector cannot sign; in mock mode it gets a demo signature the mock backend
+ * accepts, in live mode it fails (a real wallet is required).
+ */
+export function useSignAuthMessage() {
+  const { connector } = useConnection();
+  const { mutateAsync, isPending } = useSignMessage();
+  const isDemoWallet = connector?.type === "mock";
+
+  async function sign(message: string): Promise<`0x${string}`> {
+    if (isDemoWallet) {
+      if (IS_LIVE) throw new Error(t().session.demoWalletLive);
+      return demoSignature(message);
+    }
+    return mutateAsync({ message });
+  }
+
+  return { sign, isPending, isDemoWallet };
 }
