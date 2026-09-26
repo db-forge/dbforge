@@ -39,6 +39,10 @@ function toPost(m: MockMission): MissionPost {
   const mine = s.submissions.filter((x) => x.missionId === m.id);
   const accepted = mine.filter((x) => x.result === "accepted").length;
   const reviewing = mine.filter((x) => x.result === "review" || x.result === null).length;
+  const latest = mine.reduce<MockSubmission | undefined>(
+    (a, b) => (!a || b.createdAt > a.createdAt ? b : a),
+    undefined,
+  );
   const acceptedCount = Math.min(m.targetCount, m.acceptedCount + (s.acceptedDelta[m.id] ?? 0));
   return {
     ...m,
@@ -50,7 +54,9 @@ function toPost(m: MockMission): MissionPost {
     myUploads: accepted + reviewing,
     myAccepted: accepted,
     myReviewing: reviewing,
+    myRejected: mine.filter((x) => x.result === "rejected").length,
     myEarnedMon: accepted * m.rewardMon,
+    myLastRejectReason: latest?.result === "rejected" ? latest.rejectReason : undefined,
   };
 }
 
@@ -77,7 +83,7 @@ function resolveSubmission(sub: MockSubmission) {
     } else {
       target.aiScore = 0.3 + Math.random() * 0.2;
       target.rejectReason =
-        "Nesne kadrajda net değil ve hareket tamamlanmıyor. Kabul kriterlerini kontrol edip tekrar çek.";
+        "Nesne kadrajda net değil, hareket tamamlanmıyor";
     }
   });
 }
@@ -239,9 +245,14 @@ export async function getWallet(): Promise<WalletSummary> {
   const subs = getState().submissions.map(toSubmissionView);
   const accepted = subs.filter((x) => x.result === "accepted");
   const earnedMon = accepted.reduce((sum, x) => sum + x.rewardMon, 0);
+  const weekAgo = Date.now() - 7 * 24 * 3600_000;
+  const earnedWeekMon = accepted
+    .filter((x) => +new Date(x.createdAt) >= weekAgo)
+    .reduce((sum, x) => sum + x.rewardMon, 0);
   return {
     balanceMon: s.baseBalanceMon + earnedMon,
     earnedMon,
+    earnedWeekMon,
     submitted: subs.length,
     accepted: accepted.length,
     rejected: subs.filter((x) => x.result === "rejected").length,

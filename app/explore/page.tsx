@@ -28,10 +28,12 @@ function Feed() {
   return (
     <AppShell
       title="Keşfet"
-      subheader={<FilterTabs options={FILTERS} value={category} onChange={setCategory} />}
+      brandOnMobile
+      flush
+      subheader={<FilterTabs options={FILTERS} value={category} onChange={setCategory} variant="responsive" />}
     >
       {query && (
-        <div className="mb-3 flex items-center justify-between rounded-full border-[1.5px] border-sky bg-white px-4 py-2 text-sm">
+        <div className="mx-4 mt-3 flex items-center justify-between rounded-full border-[1.5px] border-sky bg-white px-4 py-2 text-sm">
           <span>
             &ldquo;<b>{query}</b>&rdquo; için sonuçlar
           </span>
@@ -40,7 +42,7 @@ function Feed() {
           </Link>
         </div>
       )}
-      <div className="space-y-4">
+      <div>
         {loading && !missions ? (
           <>
             <MissionPostCardSkeleton />
@@ -50,6 +52,7 @@ function Feed() {
           missions.map((m) => <MissionPostCard key={m.id} mission={m} />)
         ) : (
           <EmptyState
+            className="m-4"
             icon={SearchX}
             title="Bu kategoride görev yok"
             description="Şirketler yeni görevler açtıkça burada görünecek. Diğer kategorilere göz at."

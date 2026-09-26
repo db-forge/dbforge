@@ -98,6 +98,7 @@ export default function NewMissionPage() {
       myUploads: 0,
       myAccepted: 0,
       myReviewing: 0,
+      myRejected: 0,
       myEarnedMon: 0,
     }),
     [title, description, rewardNum, targetNum, limitNum, category, cover, criteria],

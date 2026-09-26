@@ -47,7 +47,11 @@ export function useSwitchToMonad() {
   };
 }
 
-export function ConnectWallet({ compact = false }: { compact?: boolean }) {
+/**
+ * Header wallet chip. Connected: "0x3f…a91c · 39.00 MON" (or `label` instead of
+ * the address, e.g. the company name on buyer pages). `compact` shows balance only.
+ */
+export function ConnectWallet({ compact = false, label }: { compact?: boolean; label?: string }) {
   const { address, isConnected, wrongNetwork } = useWalletStatus();
   const { connectWallet, isPending } = useConnectWallet();
   const { switchToMonad, isPending: switching } = useSwitchToMonad();
@@ -66,14 +70,21 @@ export function ConnectWallet({ compact = false }: { compact?: boolean }) {
     return () => document.removeEventListener("mousedown", onDown);
   }, [open]);
 
-  if (!mounted) return <div className="h-10 w-36 rounded-full bg-sky/40" />;
+  if (!mounted) return <div className={cn("h-10 rounded-xl bg-sky/40", compact ? "w-24" : "w-40")} />;
 
   if (!isConnected) {
     return (
-      <Button onClick={connectWallet} disabled={isPending} size={compact ? "sm" : "md"}>
+      <button
+        onClick={connectWallet}
+        disabled={isPending}
+        className={cn(
+          "inline-flex h-10 shrink-0 items-center gap-2 border-[1.5px] border-ink bg-white px-4 text-sm font-bold hover:bg-ice disabled:opacity-50",
+          compact ? "rounded-full" : "rounded-xl",
+        )}
+      >
         <Wallet className="size-4" />
-        {isPending ? "Bağlanıyor…" : "Cüzdan bağla"}
-      </Button>
+        {isPending ? "Bağlanıyor…" : compact ? "Bağla" : "Cüzdan bağla"}
+      </button>
     );
   }
 
@@ -81,33 +92,35 @@ export function ConnectWallet({ compact = false }: { compact?: boolean }) {
     return (
       <Button variant="danger" onClick={switchToMonad} disabled={switching} size={compact ? "sm" : "md"}>
         <AlertTriangle className="size-4" />
-        Monad Testnet&apos;e geç
+        {compact ? "Ağı değiştir" : "Monad Testnet'e geç"}
       </Button>
     );
   }
 
+  const balance = wallet ? formatMon(wallet.balanceMon) : "…";
+
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative shrink-0">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex h-10 items-center gap-2 rounded-full border-[1.5px] border-ink bg-white pl-1.5 pr-3 text-sm hover:bg-ice"
+        className={cn(
+          "flex h-10 items-center gap-1.5 border-[1.5px] border-ink bg-white px-3.5 font-mono text-sm hover:bg-ice",
+          compact ? "rounded-full" : "rounded-xl",
+        )}
       >
         {!compact && (
-          <span className="hidden items-center gap-1.5 rounded-full bg-ice px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider sm:flex">
-            <span className="size-1.5 rounded-full bg-success" />
-            Monad Testnet
-          </span>
+          <>
+            <span className="max-w-40 truncate">{label ?? shortAddr(address, 4, 4)}</span>
+            <span className="text-ink/40">·</span>
+          </>
         )}
-        {wallet && (
-          <span className="font-bold text-primary tabular-nums">
-            {formatMon(wallet.balanceMon)} <span className="text-xs">MON</span>
-          </span>
-        )}
-        <span className="font-mono text-xs">{shortAddr(address, 5, 4)}</span>
-        <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} />
+        <span className="font-bold text-primary tabular-nums">{balance}</span>
+        <span className="text-xs font-bold text-primary">MON</span>
+        {!compact && <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} />}
       </button>
       {open && (
-        <div className="absolute right-0 z-40 mt-2 w-52 overflow-hidden rounded-2xl border-[1.5px] border-ink bg-white p-1.5">
+        <div className="absolute right-0 z-40 mt-2 w-56 overflow-hidden rounded-2xl border-[1.5px] border-ink bg-white p-1.5">
+          <p className="px-3 pt-1.5 pb-2 font-mono text-[11px] text-ink/60">{shortAddr(address, 6, 6)}</p>
           <Link
             href="/wallet"
             onClick={() => setOpen(false)}

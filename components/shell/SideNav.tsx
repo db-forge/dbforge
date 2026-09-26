@@ -25,13 +25,13 @@ export function SideNav() {
   const mounted = useIsClient();
 
   return (
-    <aside className="sticky top-0 hidden h-dvh w-20 shrink-0 flex-col justify-between px-3 py-5 md:flex lg:w-64 lg:px-5">
+    <aside className="sticky top-0 hidden h-dvh w-20 shrink-0 flex-col justify-between px-3 py-5 md:flex lg:w-64 lg:px-4">
       <div className="flex flex-col items-center gap-6 lg:items-stretch">
-        <div className="hidden lg:block">
-          <Logo href="/explore" />
+        <div className="hidden px-3 lg:block">
+          <Logo href="/" />
         </div>
         <div className="lg:hidden">
-          <Logo compact href="/explore" />
+          <Logo compact href="/" />
         </div>
         <nav className="flex flex-col gap-1">
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
@@ -42,11 +42,11 @@ export function SideNav() {
                 href={href}
                 title={label}
                 className={cn(
-                  "flex items-center gap-3 rounded-full px-3 py-2.5 text-base transition-colors hover:bg-white",
-                  active ? "font-bold text-primary" : "text-ink",
+                  "flex items-center gap-4 rounded-full px-3 py-3 text-lg transition-colors hover:bg-white",
+                  active ? "font-bold text-ink" : "text-ink",
                 )}
               >
-                <Icon className="size-6 shrink-0" strokeWidth={active ? 2.4 : 1.8} />
+                <Icon className={cn("size-6 shrink-0", active && "text-primary")} strokeWidth={active ? 2.4 : 1.8} />
                 <span className="hidden lg:inline">{label}</span>
               </Link>
             );
@@ -56,10 +56,16 @@ export function SideNav() {
           <Upload className="size-5" />
           <span className="hidden lg:inline">Video yükle</span>
         </Link>
+        <Link
+          href="/buyer"
+          className="hidden px-3 font-mono text-xs text-ink/55 hover:text-primary lg:block"
+        >
+          Şirket paneli →
+        </Link>
       </div>
 
-      <div className="flex items-center gap-3 rounded-full p-1.5 lg:border-[1.5px] lg:border-ink lg:bg-white">
-        <Avatar initials="SN" className="size-9 bg-ice text-xs" />
+      <div className="flex items-center gap-3 rounded-full p-1.5 lg:px-2">
+        <Avatar initials="SN" className="size-10 border-sky bg-ice text-xs" />
         <div className="hidden min-w-0 lg:block">
           <p className="text-sm font-bold leading-tight">Sen</p>
           <p className="truncate font-mono text-xs text-ink/60">

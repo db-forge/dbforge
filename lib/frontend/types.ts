@@ -33,7 +33,10 @@ export interface MissionPost extends Mission {
   myUploads: number;
   myAccepted: number;
   myReviewing: number;
+  myRejected: number;
   myEarnedMon: number;
+  /** Reason of the user's latest submission if it was rejected. */
+  myLastRejectReason?: string;
 }
 
 export type VerifyResult = "accepted" | "rejected" | "review";
@@ -70,6 +73,7 @@ export interface PaymentTx {
 export interface WalletSummary {
   balanceMon: number;
   earnedMon: number;
+  earnedWeekMon: number;
   submitted: number;
   accepted: number;
   rejected: number;
