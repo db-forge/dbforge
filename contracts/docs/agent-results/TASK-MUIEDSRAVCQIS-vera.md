@@ -61,6 +61,7 @@ unknown tx → null
 (The temporary smoke script was deleted and is not in the repo.)
 
 ## 3. Changed files
+Commits: code in `351daea` (the lead's time-boxed hand-off commit; files identical to mine), report in the follow-up `docs(monad)` commit. No push.
 - `lib/monad/merkle.ts`, `lib/monad/mission.ts`, `lib/monad/dataset.ts`, `lib/monad/reader.ts` (new)
 - `lib/monad/test/merkle.test.ts`, `lib/monad/test/mission.test.ts` (new)
 - This report
