@@ -132,7 +132,7 @@ function registerMission(address buyer, bytes32 metadataHash, uint256 rewardPerS
 
 function approveSubmission(uint256 missionId, address contributor, bytes32 submissionHash)
     external onlyRole(VERIFIER_ROLE) whenNotPaused;
-// Checks: status == Active, contributor != 0, submissionHash != 0,
+// Checks: status == Active, contributor != 0, contributor != address(this) (InvalidContributor), submissionHash != 0,
 //         settlements[missionId][submissionHash].contributor == 0  (else AlreadySettled).
 // Effects: settlements[missionId][hash] = (contributor, reward); credited[contributor] += reward;
 //          acceptedCount++; remainingBudget -= reward; Completed at target.
@@ -204,11 +204,13 @@ struct Dataset {
 function anchorDataset(uint256 missionId, bytes32 merkleRoot, uint256 sampleCount, bytes32 metadataHash)
     external onlyRole(VERIFIER_ROLE) whenNotPaused;
 // Checks: mission Completed or Cancelled; NOT finalized (re-anchor allowed until finalize);
-// merkleRoot != 0; sampleCount > 0; sampleCount == mission.acceptedCount.
+// merkleRoot != 0; metadataHash != 0 (InvalidMetadata, G4 I-4); sampleCount > 0; sampleCount == mission.acceptedCount.
 // Emits DatasetAnchored (every anchor, including re-anchors; `previousRoot` is 0 on the first one).
 
-function finalizeDataset(uint256 missionId) external;
-// Only the mission's buyer; anchored; not finalized. Freezes the root. Emits DatasetFinalized.
+function finalizeDataset(uint256 missionId, bytes32 expectedRoot) external;
+// Only the mission's buyer; anchored; not finalized; current root == expectedRoot (else RootMismatch).
+// The buyer passes the root it reviewed, so a re-anchor landing first cannot be frozen unseen (G4 M-1).
+// Freezes the root. Emits DatasetFinalized.
 
 function verifySample(uint256 missionId, bytes32 submissionHash, bytes32[] calldata proof)
     external view returns (bool);
@@ -248,6 +250,8 @@ event DatasetFinalized(uint256 indexed missionId, address indexed buyer);
 v1 list, with these changes:
 - removed: `AlreadyPaid(bytes32)`, `AlreadyAnchored(uint256)`
 - added: `AlreadySettled(uint256 missionId, bytes32 submissionHash)`, `NothingToWithdraw()`, `InvalidFactory()`
+- added after G4 phase 1: `RootMismatch(uint256 missionId, bytes32 expected, bytes32 actual)` (finalize, M-1),
+  `InvalidContributor()` (settling to the Vault's own address, L-1)
 - from OpenZeppelin: `EnforcedPause()`, `ExpectedPause()`, `AccessControlUnauthorizedAccount(address,bytes32)`
 
 `lib/monad` maps them to its typed error codes (see the G6 README).

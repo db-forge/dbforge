@@ -29,7 +29,8 @@ import {
     NotBuyer,
     InvalidSubmission,
     AlreadySettled,
-    TransferFailed
+    TransferFailed,
+    InvalidContributor
 } from "../src/Errors.sol";
 
 /// @notice Setup, registration, settlement (credit) and cancel. Withdraw and pause: MissionVaultWithdraw.t.sol.
@@ -332,6 +333,14 @@ contract MissionVaultTest is BaseTest {
         vm.prank(verifier);
         vm.expectRevert(ZeroAddress.selector);
         vault.approveSubmission(id, address(0), _sub(1));
+    }
+
+    /// G4 L-1: the Vault has no receive(), so a credit to itself could never be withdrawn.
+    function test_approve_revertsWhenContributorIsVault() public {
+        uint256 id = _createDefault();
+        vm.prank(verifier);
+        vm.expectRevert(InvalidContributor.selector);
+        vault.approveSubmission(id, address(vault), _sub(1));
     }
 
     function test_approve_revertsOnZeroHash() public {

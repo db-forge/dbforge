@@ -42,7 +42,8 @@ contract MonadForkTest is BaseTest {
         bytes32 l2 = keccak256(bytes.concat(keccak256(abi.encode(_sub(2)))));
         vm.startPrank(verifier);
         registry.anchorDataset(id, keccak256("wrong root"), 2, keccak256("manifest"));
-        registry.anchorDataset(id, Hashes.commutativeKeccak256(l1, l2), 2, keccak256("manifest")); // re-anchor
+        bytes32 root = Hashes.commutativeKeccak256(l1, l2);
+        registry.anchorDataset(id, root, 2, keccak256("manifest")); // re-anchor
         vm.stopPrank();
 
         bytes32[] memory proof = new bytes32[](1);
@@ -50,7 +51,7 @@ contract MonadForkTest is BaseTest {
         assertTrue(registry.verifySample(id, _sub(1), proof));
 
         vm.prank(buyer);
-        registry.finalizeDataset(id);
+        registry.finalizeDataset(id, root);
         assertTrue(registry.getDataset(id).finalized);
     }
 

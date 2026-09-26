@@ -22,7 +22,8 @@ interface IProvenanceRegistry {
 
     function anchorDataset(uint256 missionId, bytes32 merkleRoot, uint256 sampleCount, bytes32 metadataHash) external;
 
-    function finalizeDataset(uint256 missionId) external;
+    /// @param expectedRoot The root the buyer reviewed. Reverts RootMismatch if a re-anchor changed it.
+    function finalizeDataset(uint256 missionId, bytes32 expectedRoot) external;
 
     function pause() external;
 

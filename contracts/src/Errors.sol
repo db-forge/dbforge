@@ -23,3 +23,5 @@ error NotAnchored(uint256 missionId);
 error AlreadyFinalized(uint256 missionId);
 error SampleCountMismatch(uint256 expected, uint256 actual);
 error InvalidRoot();
+error RootMismatch(uint256 missionId, bytes32 expected, bytes32 actual);
+error InvalidContributor();

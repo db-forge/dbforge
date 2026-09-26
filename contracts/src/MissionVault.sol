@@ -20,7 +20,8 @@ import {
     InvalidSubmission,
     AlreadySettled,
     NothingToWithdraw,
-    TransferFailed
+    TransferFailed,
+    InvalidContributor
 } from "./Errors.sol";
 
 /// @title MissionVault
@@ -107,6 +108,8 @@ contract MissionVault is IMissionVault, AccessControl, Pausable, ReentrancyGuard
         Mission storage m = missions[missionId];
         if (m.status != MissionStatus.Active) revert MissionNotActive(missionId);
         if (contributor == address(0)) revert ZeroAddress();
+        // The Vault has no receive(): a credit to itself could never be withdrawn (G4 L-1).
+        if (contributor == address(this)) revert InvalidContributor();
         if (submissionHash == bytes32(0)) revert InvalidSubmission();
         Settlement storage s = settlements[missionId][submissionHash];
         if (s.contributor != address(0)) revert AlreadySettled(missionId, submissionHash);

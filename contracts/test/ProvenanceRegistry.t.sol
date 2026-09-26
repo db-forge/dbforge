@@ -15,7 +15,9 @@ import {
     NotAnchored,
     AlreadyFinalized,
     SampleCountMismatch,
-    InvalidRoot
+    InvalidRoot,
+    InvalidMetadata,
+    RootMismatch
 } from "../src/Errors.sol";
 
 contract ProvenanceRegistryTest is BaseTest {
@@ -202,7 +204,7 @@ contract ProvenanceRegistryTest is BaseTest {
     function test_reanchor_afterFinalize_reverts() public {
         _anchor();
         vm.prank(buyer);
-        registry.finalizeDataset(missionId);
+        registry.finalizeDataset(missionId, root);
         vm.prank(verifier);
         vm.expectRevert(abi.encodeWithSelector(AlreadyFinalized.selector, missionId));
         registry.anchorDataset(missionId, keccak256("other root"), TARGET, MANIFEST);
@@ -240,7 +242,7 @@ contract ProvenanceRegistryTest is BaseTest {
         registry.pause();
         assertTrue(registry.verifySample(missionId, _sub(2), _proof(n01)));
         vm.prank(buyer);
-        registry.finalizeDataset(missionId);
+        registry.finalizeDataset(missionId, root);
         assertTrue(registry.getDataset(missionId).finalized);
     }
 
@@ -287,7 +289,7 @@ contract ProvenanceRegistryTest is BaseTest {
         vm.expectEmit(address(registry));
         emit IProvenanceRegistry.DatasetFinalized(missionId, buyer);
         vm.prank(buyer);
-        registry.finalizeDataset(missionId);
+        registry.finalizeDataset(missionId, root);
         assertTrue(registry.getDataset(missionId).finalized);
     }
 
@@ -297,22 +299,47 @@ contract ProvenanceRegistryTest is BaseTest {
         for (uint256 i; i < callers.length; ++i) {
             vm.prank(callers[i]);
             vm.expectRevert(abi.encodeWithSelector(NotBuyer.selector, missionId));
-            registry.finalizeDataset(missionId);
+            registry.finalizeDataset(missionId, root);
         }
     }
 
     function test_finalize_revertsWhenNotAnchored() public {
         vm.prank(buyer);
         vm.expectRevert(abi.encodeWithSelector(NotAnchored.selector, missionId));
-        registry.finalizeDataset(missionId);
+        registry.finalizeDataset(missionId, root);
+    }
+
+    /// G4 M-1: a re-anchor that lands before the buyer's finalize must not freeze a root the buyer never saw.
+    function test_finalize_revertsWhenRootChangedSinceReview() public {
+        _anchor();
+        bytes32 reviewed = registry.getDataset(missionId).merkleRoot;
+        bytes32 other = keccak256("other root");
+        vm.prank(verifier);
+        registry.anchorDataset(missionId, other, TARGET, MANIFEST);
+
+        vm.prank(buyer);
+        vm.expectRevert(abi.encodeWithSelector(RootMismatch.selector, missionId, reviewed, other));
+        registry.finalizeDataset(missionId, reviewed);
+        assertFalse(registry.getDataset(missionId).finalized);
+
+        vm.prank(buyer);
+        registry.finalizeDataset(missionId, other);
+        assertTrue(registry.getDataset(missionId).finalized);
+    }
+
+    /// G4 I-4: the manifest hash is part of the provenance record and must not be empty.
+    function test_anchor_revertsOnZeroMetadata() public {
+        vm.prank(verifier);
+        vm.expectRevert(InvalidMetadata.selector);
+        registry.anchorDataset(missionId, root, TARGET, bytes32(0));
     }
 
     function test_finalize_revertsTwice() public {
         _anchor();
         vm.startPrank(buyer);
-        registry.finalizeDataset(missionId);
+        registry.finalizeDataset(missionId, root);
         vm.expectRevert(abi.encodeWithSelector(AlreadyFinalized.selector, missionId));
-        registry.finalizeDataset(missionId);
+        registry.finalizeDataset(missionId, root);
         vm.stopPrank();
     }
 

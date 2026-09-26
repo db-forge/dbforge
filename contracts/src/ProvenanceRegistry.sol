@@ -13,7 +13,9 @@ import {
     NotAnchored,
     AlreadyFinalized,
     SampleCountMismatch,
-    InvalidRoot
+    InvalidRoot,
+    InvalidMetadata,
+    RootMismatch
 } from "./Errors.sol";
 
 /// @title ProvenanceRegistry
@@ -49,6 +51,7 @@ contract ProvenanceRegistry is IProvenanceRegistry, AccessControl, Pausable {
         Dataset storage d = datasets[missionId];
         if (d.finalized) revert AlreadyFinalized(missionId);
         if (merkleRoot == bytes32(0)) revert InvalidRoot();
+        if (metadataHash == bytes32(0)) revert InvalidMetadata();
         if (sampleCount == 0 || sampleCount != m.acceptedCount) {
             revert SampleCountMismatch(m.acceptedCount, sampleCount);
         }
@@ -65,11 +68,14 @@ contract ProvenanceRegistry is IProvenanceRegistry, AccessControl, Pausable {
     }
 
     /// @notice The mission's buyer accepts the anchored dataset. Freezes the root. One time only.
-    function finalizeDataset(uint256 missionId) external {
+    /// @param expectedRoot The root the buyer reviewed. A re-anchor that lands first makes this revert
+    ///        instead of freezing a root the buyer never saw (G4 M-1).
+    function finalizeDataset(uint256 missionId, bytes32 expectedRoot) external {
         if (msg.sender != vault.getMission(missionId).buyer) revert NotBuyer(missionId);
         Dataset storage d = datasets[missionId];
         if (d.anchoredAt == 0) revert NotAnchored(missionId);
         if (d.finalized) revert AlreadyFinalized(missionId);
+        if (d.merkleRoot != expectedRoot) revert RootMismatch(missionId, expectedRoot, d.merkleRoot);
 
         d.finalized = true;
 
