@@ -11,13 +11,14 @@ import { AppShell } from "@/components/shell/AppShell";
 import { Button } from "@/components/ui/button";
 import { getMissions } from "@/lib/frontend/api";
 import { useApi } from "@/lib/frontend/hooks";
+import { CATEGORY_TONE, type Tone } from "@/lib/frontend/tones";
 import type { CategoryFilter } from "@/lib/frontend/types";
 
-const FILTERS: { value: CategoryFilter; label: string }[] = [
-  { value: "all", label: "Tümü" },
-  { value: "teknoloji", label: "Teknoloji" },
-  { value: "doga", label: "Doğa" },
-  { value: "gundelik", label: "Gündelik" },
+const FILTERS: { value: CategoryFilter; label: string; tone: Tone }[] = [
+  { value: "all", label: "Tümü", tone: CATEGORY_TONE.all },
+  { value: "teknoloji", label: "Teknoloji", tone: CATEGORY_TONE.teknoloji },
+  { value: "doga", label: "Doğa", tone: CATEGORY_TONE.doga },
+  { value: "gundelik", label: "Gündelik", tone: CATEGORY_TONE.gundelik },
 ];
 
 function Feed() {

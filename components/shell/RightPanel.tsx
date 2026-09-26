@@ -42,7 +42,7 @@ export function RightPanel() {
       </form>
 
       <Link href="/wallet" className="block">
-        <Card className="border-primary bg-primary p-4 text-white transition-colors hover:bg-[#a426ff]">
+        <Card className="border-primary bg-primary p-4 text-white transition-colors hover:bg-[#a73ff0]">
           <div className="flex items-center justify-between">
             <MonoLabel className="text-white/75">Cüzdan</MonoLabel>
             <NetworkPill className="border-white/70 text-white" />
@@ -51,7 +51,7 @@ export function RightPanel() {
             <Skeleton className="mt-3 h-9 w-40 bg-white/20" />
           ) : (
             <>
-              <MonAmount value={wallet.data.balanceMon} size="lg" className="mt-2 block text-white" />
+              <MonAmount value={wallet.data.balanceMon} size="lg" className="mt-2 block" />
               <p className="mt-1 text-xs text-white/80">
                 Bu hafta +{formatMon(wallet.data.earnedWeekMon)} · {wallet.data.accepted} kabul
               </p>
@@ -80,28 +80,28 @@ export function RightPanel() {
                       {m.myUploads}/{m.perUserLimit}
                     </span>
                   </div>
-                  <ProgressBar value={m.myUploads} max={m.perUserLimit} size="sm" />
+                  <ProgressBar value={m.myUploads} max={m.perUserLimit} size="sm" tone="pink" />
                 </Link>
               </li>
             ))}
           </ul>
         )}
-        <Link href="/registered" className="mt-3 inline-block text-sm font-bold text-accent underline underline-offset-2">
+        <Link href="/registered" className="mt-3 inline-block text-sm font-bold text-pink underline underline-offset-2">
           Tümünü gör
         </Link>
       </Card>
 
-      <Card className="p-4">
+      <Card className="border-lemon bg-lemon p-4 text-black">
         <h3 className="mb-3 font-bold">En çok ödeyenler</h3>
         {!topPaying ? (
-          <Skeleton className="h-20" />
+          <Skeleton className="h-20 bg-black/10" />
         ) : (
           <ol className="space-y-2.5">
             {topPaying.map((m) => (
               <li key={m.id}>
                 <Link href={`/mission/${m.id}`} className="group flex items-center justify-between gap-3">
-                  <span className="truncate text-sm group-hover:text-accent">{m.title}</span>
-                  <MonAmount value={m.rewardMon} size="sm" />
+                  <span className="truncate text-sm group-hover:underline">{m.title}</span>
+                  <MonAmount value={m.rewardMon} size="sm" className="text-black" />
                 </Link>
               </li>
             ))}

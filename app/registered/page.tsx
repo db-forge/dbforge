@@ -28,7 +28,7 @@ function RegistrationCard({ mission, tab, primary }: { mission: MissionPost; tab
         <div className="min-w-0">
           <p className="truncate text-lg leading-tight font-bold group-hover:text-accent">{mission.title}</p>
           <p className="mt-0.5 truncate text-sm text-ink/65">
-            {mission.company.name} · <b className="text-accent">{formatMon(mission.rewardMon)} MON</b> / video
+            {mission.company.name} · <b className="text-lemon">{formatMon(mission.rewardMon)} MON</b> / video
           </p>
         </div>
       </Link>
@@ -44,7 +44,7 @@ function RegistrationCard({ mission, tab, primary }: { mission: MissionPost; tab
           <ProgressBar
             value={mission.myUploads}
             max={mission.perUserLimit}
-            tone={tab === "done" ? "success" : "primary"}
+            tone={tab === "done" ? "success" : "pink"}
           />
           {mission.myLastRejectReason ? (
             <p className="mt-2.5 text-sm text-danger">
@@ -61,7 +61,7 @@ function RegistrationCard({ mission, tab, primary }: { mission: MissionPost; tab
                   {mission.myReviewing > 0 && <span className="text-warning">◐ {mission.myReviewing} incelemede</span>}
                 </span>
                 {mission.myEarnedMon > 0 && (
-                  <span className="font-bold text-accent tabular-nums">+{formatMon(mission.myEarnedMon)} MON</span>
+                  <span className="font-bold text-lemon tabular-nums">+{formatMon(mission.myEarnedMon)} MON</span>
                 )}
               </div>
             )
@@ -77,7 +77,7 @@ function RegistrationCard({ mission, tab, primary }: { mission: MissionPost; tab
         </LinkButton>
       )}
       {canUpload && !primary && (
-        <Link href={captureHref} className="mt-3 inline-block text-sm font-bold text-accent underline underline-offset-2">
+        <Link href={captureHref} className="mt-3 inline-block text-sm font-bold text-pink underline underline-offset-2">
           {mission.isRegistered ? "Video yükle →" : "Kayıt ol ve çek →"}
         </Link>
       )}
@@ -120,9 +120,9 @@ export default function RegisteredPage() {
           value={tab}
           onChange={setTab}
           options={[
-            { value: "active", label: "Devam eden", count: data?.active.length },
-            { value: "saved", label: "Kaydedilenler", count: data?.saved.length },
-            { value: "done", label: "Biten", count: data?.done.length },
+            { value: "active", label: "Devam eden", count: data?.active.length, tone: "pink" },
+            { value: "saved", label: "Kaydedilenler", count: data?.saved.length, tone: "lemon" },
+            { value: "done", label: "Biten", count: data?.done.length, tone: "primary" },
           ]}
         />
       }

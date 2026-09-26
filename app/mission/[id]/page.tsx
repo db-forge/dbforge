@@ -17,6 +17,7 @@ import { Card, MonoLabel, Skeleton } from "@/components/ui/card";
 import { getMission, getMySubmissions, registerMission, toggleSave } from "@/lib/frontend/api";
 import { useApi } from "@/lib/frontend/hooks";
 import { CATEGORY_LABELS } from "@/lib/frontend/types";
+import { CATEGORY_TEXT } from "@/lib/frontend/tones";
 import { cn, formatMon } from "@/lib/frontend/utils";
 
 export default function MissionDetailPage() {
@@ -119,7 +120,7 @@ export default function MissionDetailPage() {
           aria-label="Kaydet"
           className="absolute top-4 right-4 grid size-11 place-items-center rounded-full border-[1.5px] border-line bg-surface hover:bg-ice"
         >
-          <Bookmark className={cn("size-5", mission.isSaved && "fill-accent text-accent")} />
+          <Bookmark className={cn("size-5", mission.isSaved && "fill-lemon text-lemon")} />
         </button>
       </div>
 
@@ -127,9 +128,9 @@ export default function MissionDetailPage() {
         {/* Title + reward */}
         <div>
           <div className="flex items-center gap-2 text-sm">
-            <Avatar initials={mission.company.initials} className="size-6 border-primary bg-primary text-[9px] text-white" />
+            <Avatar initials={mission.company.initials} colorKey={mission.company.handle} className="size-6 text-[9px]" />
             <span className="font-bold">{mission.company.name}</span>
-            <span className="font-mono text-xs text-accent">#{CATEGORY_LABELS[mission.category]}</span>
+            <span className={cn("font-mono text-xs", CATEGORY_TEXT[mission.category])}>#{CATEGORY_LABELS[mission.category]}</span>
             <span className="ml-auto">
               <StatusBadge status={completed ? "completed" : "active"} />
             </span>
@@ -146,7 +147,7 @@ export default function MissionDetailPage() {
           <ProgressBar
             value={mission.acceptedCount}
             max={mission.targetCount}
-            tone={completed ? "success" : "primary"}
+            tone={completed ? "success" : "lemon"}
           />
           <p className="mt-2 text-xs text-ink/65">
             <b className="text-ink tabular-nums">
@@ -159,19 +160,19 @@ export default function MissionDetailPage() {
         <p className="text-sm text-ink/75">{mission.description}</p>
 
         {/* Criteria */}
-        <Card className="p-4">
-          <MonoLabel>Videon şunları göstermeli</MonoLabel>
+        <Card className="border-lemon bg-lemon p-4 text-black">
+          <MonoLabel className="text-black/60">Videon şunları göstermeli</MonoLabel>
           <ul className="mt-3 space-y-2.5">
             {mission.criteria.map((c) => (
-              <li key={c} className="flex items-start gap-2.5 text-sm">
-                <span className="mt-0.5 grid size-4 shrink-0 place-items-center rounded-[4px] border-[1.5px] border-line">
-                  <Check className="size-3 text-accent" strokeWidth={3} />
+              <li key={c} className="flex items-start gap-2.5 text-sm font-medium">
+                <span className="mt-0.5 grid size-4 shrink-0 place-items-center rounded-[4px] border-[1.5px] border-black">
+                  <Check className="size-3" strokeWidth={3} />
                 </span>
                 {c}
               </li>
             ))}
           </ul>
-          <p className="mt-3 border-t border-sky pt-3 text-xs text-ink/60">
+          <p className="mt-3 border-t border-black/15 pt-3 text-xs text-black/60">
             min {mission.minDurationSec} sn · 720p veya üstü · kişi başı {mission.perUserLimit} video
           </p>
         </Card>
@@ -185,12 +186,12 @@ export default function MissionDetailPage() {
                 {mission.myUploads} / {mission.perUserLimit} video
               </span>
             </div>
-            <ProgressBar value={mission.myUploads} max={mission.perUserLimit} size="sm" className="mt-2" />
+            <ProgressBar value={mission.myUploads} max={mission.perUserLimit} size="sm" tone="pink" className="mt-2" />
             <p className="mt-2 flex gap-3 text-xs">
               <span className="text-success">✓ {mission.myAccepted} kabul</span>
               <span className="text-warning">◐ {mission.myReviewing} incelemede</span>
               {mission.myEarnedMon > 0 && (
-                <span className="ml-auto font-bold text-accent">+{formatMon(mission.myEarnedMon)} MON</span>
+                <span className="ml-auto font-bold text-lemon">+{formatMon(mission.myEarnedMon)} MON</span>
               )}
             </p>
             {mySubs && mySubs.length > 0 && (

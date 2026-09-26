@@ -142,11 +142,11 @@ export default function SubmissionPage() {
             <span
               className={cn(
                 "grid size-24 animate-pop place-items-center rounded-full border-[1.5px] bg-surface",
-                accepted ? "border-line" : rejected ? "border-danger text-danger" : "border-warning text-warning",
+                accepted ? "border-lemon bg-lemon text-black" : rejected ? "border-danger text-danger" : "border-warning text-warning",
               )}
             >
               {accepted ? (
-                <Check className="size-10 text-success" strokeWidth={2.5} />
+                <Check className="size-10" strokeWidth={3} />
               ) : rejected ? (
                 <X className="size-10" strokeWidth={2.5} />
               ) : (
@@ -190,7 +190,7 @@ export default function SubmissionPage() {
                 <p className="mt-2 text-2xl font-bold">Manuel incelemeye alındı</p>
                 <p className="mt-2 max-w-sm rounded-xl border-[1.5px] border-warning/50 bg-warning/15 px-4 py-3 text-sm text-ink/80">
                   AI skoru kabul eşiğine yakın. Moderatör onaylarsa{" "}
-                  <b className="text-accent">{formatMon(sub.rewardMon)} MON</b> otomatik gönderilir.
+                  <b className="text-lemon">{formatMon(sub.rewardMon)} MON</b> otomatik gönderilir.
                 </p>
               </>
             )}
@@ -263,13 +263,13 @@ export default function SubmissionPage() {
                 key={i}
                 className={cn(
                   "flex items-center justify-between gap-3 px-4 py-3.5",
-                  st === "active" && "font-bold text-accent",
+                  st === "active" && "font-bold text-pink",
                   st === "waiting" && "text-ink/40",
                 )}
               >
                 <span>{text}</span>
                 {st === "done" ? (
-                  <Check className="size-5 animate-pop" strokeWidth={2.5} />
+                  <Check className="size-5 animate-pop text-lemon" strokeWidth={2.5} />
                 ) : st === "active" ? (
                   <Loader2 className="size-5 animate-spin" />
                 ) : (

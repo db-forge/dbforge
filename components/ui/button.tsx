@@ -2,7 +2,7 @@ import Link from "next/link";
 import { forwardRef, type ComponentProps } from "react";
 import { cn } from "@/lib/frontend/utils";
 
-type Variant = "primary" | "outline" | "ghost" | "soft" | "ink" | "danger";
+type Variant = "primary" | "pink" | "lemon" | "outline" | "ghost" | "soft" | "ink" | "danger";
 type Size = "sm" | "md" | "lg";
 
 const base =
@@ -10,6 +10,8 @@ const base =
 
 const variants: Record<Variant, string> = {
   primary: "bg-primary text-white border-[1.5px] border-primary hover:bg-[#a426ff]",
+  pink: "bg-pink text-black border-[1.5px] border-pink hover:bg-[#ff85da]",
+  lemon: "bg-lemon text-black border-[1.5px] border-lemon hover:bg-[#fcf2b8]",
   ink: "bg-ink text-canvas border-[1.5px] border-ink hover:bg-ink/85",
   outline: "bg-surface text-ink border-[1.5px] border-line hover:bg-ice",
   soft: "bg-ice text-accent border-[1.5px] border-sky hover:border-primary",

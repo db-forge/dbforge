@@ -1,12 +1,13 @@
 "use client";
 
+import { TONE_BORDER, TONE_FILL, type Tone } from "@/lib/frontend/tones";
 import { cn } from "@/lib/frontend/utils";
 
-type Option<T> = { value: T; label: string; count?: number };
+type Option<T> = { value: T; label: string; count?: number; tone?: Tone };
 
 /**
- * `pill`: rounded chips, selected one filled with ink.
- * `underline`: X-style equal-width tabs with a primary indicator.
+ * `pill`: rounded chips, selected one filled with its tone (default pink).
+ * `underline`: X-style equal-width tabs with a tone-colored indicator.
  * `responsive`: pills on mobile, underline tabs from md up.
  */
 export function FilterTabs<T extends string>({
@@ -53,7 +54,7 @@ export function FilterTabs<T extends string>({
               <span
                 className={cn(
                   "border-b-4 pb-2.5 text-[15px] transition-colors",
-                  active ? "border-primary font-bold text-ink" : "border-transparent text-ink/60",
+                  active ? cn("font-bold text-ink", TONE_BORDER[o.tone ?? "pink"]) : "border-transparent text-ink/60",
                 )}
               >
                 {o.label}
@@ -78,12 +79,12 @@ export function FilterTabs<T extends string>({
             onClick={() => onChange(o.value)}
             className={cn(
               "h-9 shrink-0 rounded-full border-[1.5px] px-4 text-sm font-medium transition-colors",
-              active ? "border-primary bg-primary text-white" : "border-line bg-surface text-ink hover:bg-ice",
+              active ? TONE_FILL[o.tone ?? "pink"] : "border-line bg-surface text-ink hover:bg-ice",
             )}
           >
             {o.label}
             {o.count !== undefined && (
-              <span className={cn("ml-1", active ? "text-white/80" : "text-ink/60")}>· {o.count}</span>
+              <span className={cn("ml-1", active ? "opacity-75" : "text-ink/60")}>· {o.count}</span>
             )}
           </button>
         );

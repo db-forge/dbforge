@@ -14,6 +14,14 @@ const STEPS = [
   { title: "Anında ödeme", text: "Monad üzerinde ödenir" },
 ];
 
+// Alternating accent blocks, like the reference's lime/black cards.
+const STEP_TONES = [
+  "bg-lemon text-black",
+  "bg-canvas text-ink [&>span]:text-pink",
+  "bg-pink text-black",
+  "bg-canvas text-ink [&>span]:text-lemon",
+];
+
 const NAV = [
   { href: "/explore", label: "Görevler" },
   { href: "/buyer", label: "Şirketler için" },
@@ -45,17 +53,18 @@ export default function HomePage() {
       <main className="flex-1">
         <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-14 md:py-20 lg:grid-cols-2">
           <div className="relative">
-            <Burst className="absolute -top-10 right-4 size-16 animate-[spin_24s_linear_infinite] sm:right-16 lg:-top-12" />
-            <p className="font-mono text-xs tracking-wider text-accent uppercase">Physical AI için veri görevleri</p>
+            <Burst className="absolute -top-10 right-4 size-16 animate-[spin_24s_linear_infinite] fill-pink sm:right-16 lg:-top-12" />
+            <Burst className="absolute top-2 right-24 size-7 fill-lemon sm:right-36" />
+            <p className="font-mono text-xs tracking-wider text-pink uppercase">Physical AI için veri görevleri</p>
             <h1 className="mt-3 text-5xl leading-[1.02] font-bold tracking-tight md:text-6xl">
-              Real-world data for <span className="text-accent">Physical AI.</span>
+              Real-world data for <span className="text-lemon">Physical AI.</span>
             </h1>
             <p className="mt-6 max-w-lg text-lg text-ink/75">
               Şirketler veri görevi açar. İnsanlar telefonlarıyla çeker. AI doğrular. Kabul edilen her örnek Monad
               üzerinden anında ödenir.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <LinkButton href="/explore" size="lg" className="font-bold">
+              <LinkButton href="/explore" variant="lemon" size="lg" className="font-bold">
                 Görevlere göz at
               </LinkButton>
               <LinkButton href="/buyer/new" size="lg" variant="outline" className="font-bold">
@@ -69,7 +78,7 @@ export default function HomePage() {
               <span className="size-1.5 animate-pulse rounded-full bg-success" /> Canlı görevler
             </MonoLabel>
             <LiveMissions />
-            <Link href="/explore" className="mt-3 inline-block text-sm font-bold text-accent hover:underline">
+            <Link href="/explore" className="mt-3 inline-block text-sm font-bold text-pink hover:underline">
               Tümünü gör →
             </Link>
           </div>
@@ -81,14 +90,14 @@ export default function HomePage() {
           <div className="relative mx-auto max-w-6xl px-4">
             <div className="flex items-center gap-3">
               <h2 className="text-3xl font-bold tracking-tight md:text-4xl">Nasıl çalışır</h2>
-              <Burst className="size-8 fill-canvas" />
+              <Burst className="size-8 fill-lemon" />
             </div>
             <ol className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {STEPS.map((s, i) => (
-                <li key={s.title} className="rounded-2xl bg-canvas p-5">
-                  <span className="font-mono text-3xl font-bold text-accent">0{i + 1}</span>
-                  <p className="mt-3 text-lg font-bold text-ink">{s.title}</p>
-                  <p className="text-sm text-ink/65">{s.text}</p>
+                <li key={s.title} className={`rounded-2xl p-5 ${STEP_TONES[i]}`}>
+                  <span className="font-mono text-3xl font-bold">0{i + 1}</span>
+                  <p className="mt-3 text-lg font-bold">{s.title}</p>
+                  <p className="text-sm opacity-75">{s.text}</p>
                 </li>
               ))}
             </ol>

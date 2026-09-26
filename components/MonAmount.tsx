@@ -7,7 +7,7 @@ const SIZES = {
   xl: "text-5xl",
 };
 
-/** MON figures are always big, bold and primary. */
+/** MON figures are always big, bold and lemon. */
 export function MonAmount({
   value,
   size = "md",
@@ -22,7 +22,7 @@ export function MonAmount({
   className?: string;
 }) {
   return (
-    <span className={cn("font-bold tracking-tight text-accent tabular-nums", SIZES[size], className)}>
+    <span className={cn("font-bold tracking-tight text-lemon tabular-nums", SIZES[size], className)}>
       {sign && "+"}
       {formatMon(value, digits)}
       <span className="ml-1 text-[0.6em] font-bold">MON</span>

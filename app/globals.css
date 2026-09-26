@@ -1,16 +1,18 @@
 @import "tailwindcss";
 
 /* DBForge design tokens (Tailwind v4: tokens live here instead of tailwind.config) */
-/* Dark theme: black canvas, purple as the accent block color. */
+/* Dark theme: black canvas with purple, pink and lemon accent blocks. */
 @theme {
-  --color-canvas: #07050b; /* page background */
-  --color-surface: #120d1b; /* cards, inputs */
-  --color-ice: #1c1428; /* subtle raised fill: chips, hover, stat boxes */
-  --color-line: #3b2b58; /* 1.5px card borders */
-  --color-sky: #2a1f3d; /* thin dividers, progress track */
-  --color-ink: #f3ecff; /* foreground text */
-  --color-primary: #9400ff; /* fills: buttons, active state, accent blocks */
-  --color-accent: #b866ff; /* purple text on dark (MON figures, links) */
+  --color-canvas: #000000; /* page background */
+  --color-surface: #0e0a13; /* cards, inputs */
+  --color-ice: #1a1322; /* subtle raised fill: chips, hover, stat boxes */
+  --color-line: #33264a; /* 1.5px card borders */
+  --color-sky: #261c35; /* thin dividers, progress track */
+  --color-ink: #f7f2ff; /* foreground text */
+  --color-primary: #9929ea; /* purple fills: buttons, blocks */
+  --color-accent: #c07bff; /* purple text on dark (links, labels) */
+  --color-pink: #ff5fcf; /* personal progress, register, highlights */
+  --color-lemon: #faeb92; /* MON figures, overall progress, highlights */
   --color-success: #22c55e;
   --color-danger: #f04438;
   --color-warning: #f79009;

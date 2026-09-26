@@ -20,7 +20,7 @@ export function BottomTabs({ hidden = false }: { hidden?: boolean }) {
             href={href}
             className={cn(
               "flex flex-col items-center gap-0.5 py-2.5 text-xs",
-              active ? "font-bold text-accent" : "text-ink/70",
+              active ? "font-bold text-pink" : "text-ink/70",
             )}
           >
             <Icon className="size-5" strokeWidth={active ? 2.4 : 1.8} />

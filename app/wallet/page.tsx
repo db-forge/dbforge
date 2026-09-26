@@ -34,7 +34,7 @@ export default function WalletPage() {
       <AppShell title="Cüzdan" actions={<NetworkPill />}>
         <Card className="mt-2 p-8 text-center">
           <div className="mx-auto grid size-14 place-items-center rounded-full border-[1.5px] border-line bg-ice">
-            <Wallet className="size-6 text-accent" />
+            <Wallet className="size-6 text-pink" />
           </div>
           <p className="mt-4 text-xl font-bold">Cüzdanını bağla</p>
           <p className="mx-auto mt-1 max-w-sm text-sm text-ink/70">
@@ -96,10 +96,10 @@ export default function WalletPage() {
           {loading && !wallet ? (
             <Skeleton className="mt-2 h-14 w-48 bg-white/20" />
           ) : (
-            <MonAmount value={wallet?.balanceMon ?? 0} size="xl" className="mt-1 block text-6xl text-white" />
+            <MonAmount value={wallet?.balanceMon ?? 0} size="xl" className="mt-1 block text-6xl" />
           )}
           <p className="mt-2 text-white/85">
-            Bu hafta <b className="text-white">+{formatMon(wallet?.earnedWeekMon ?? 0)} MON</b> kazandın
+            Bu hafta <b className="text-lemon">+{formatMon(wallet?.earnedWeekMon ?? 0)} MON</b> kazandın
           </p>
           {onchainBalance !== null && (
             <p className="mt-1 font-mono text-[11px] text-white/60">zincir bakiyesi {formatMon(onchainBalance, 4)} MON</p>
@@ -151,7 +151,7 @@ export default function WalletPage() {
                         tx {shortAddr(p.hash, 4, 2)} · {timeAgo(p.createdAt)}
                       </a>
                     </div>
-                    <span className="shrink-0 text-lg font-bold text-accent tabular-nums">
+                    <span className="shrink-0 text-lg font-bold text-lemon tabular-nums">
                       +{formatMon(p.amountMon)}
                     </span>
                   </li>

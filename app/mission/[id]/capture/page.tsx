@@ -272,7 +272,7 @@ export default function CapturePage() {
           <Link href={`/mission/${id}`} className="inline-flex items-center gap-1.5 text-sm font-medium">
             <X className="size-5" /> İptal
           </Link>
-          <span className="inline-flex h-8 items-center rounded-full border-[1.5px] border-white/80 px-3 font-mono text-xs">
+          <span className="inline-flex h-8 items-center rounded-full border-[1.5px] border-lemon px-3 font-mono text-xs text-lemon">
             challenge {challenge.code} · {fmt(challenge.left)}
           </span>
         </div>
@@ -280,7 +280,7 @@ export default function CapturePage() {
         {mission && (
           <div className="mt-2 flex items-center justify-between gap-3 text-sm">
             <span className="truncate text-white/80">{mission.title}</span>
-            <MonAmount value={mission.rewardMon} size="sm" className="shrink-0 text-sky" />
+            <MonAmount value={mission.rewardMon} size="sm" className="shrink-0" />
           </div>
         )}
 
@@ -321,7 +321,7 @@ export default function CapturePage() {
             <div className="absolute inset-0 overflow-y-auto bg-ice p-4 text-ink">
               <div className="flex items-center gap-3">
                 <span className="grid size-10 shrink-0 place-items-center rounded-full border-[1.5px] border-line bg-surface">
-                  <CameraOff className="size-5 text-accent" />
+                  <CameraOff className="size-5 text-pink" />
                 </span>
                 <div>
                   <p className="font-bold">Kamera izni yok</p>
@@ -350,7 +350,7 @@ export default function CapturePage() {
                     phase === "recording" ? "bg-danger text-white" : "bg-surface/90 text-ink",
                   )}
                 >
-                  <span className={cn("size-2 rounded-full", phase === "recording" ? "animate-pulse bg-surface" : "bg-danger")} />
+                  <span className={cn("size-2 rounded-full", phase === "recording" ? "animate-pulse bg-white" : "bg-danger")} />
                   {fmt(elapsed)}
                 </span>
               </div>
@@ -375,16 +375,16 @@ export default function CapturePage() {
         {/* Duration track: 0 — min 10 — 20 */}
         {!denied && (
           <div className="mt-4">
-            <div className="relative h-1.5 rounded-full bg-surface/20">
+            <div className="relative h-1.5 rounded-full bg-white/20">
               <div
                 className={cn(
                   "h-full rounded-full transition-[width] duration-100",
-                  elapsed >= MIN_SEC ? "bg-success" : "bg-surface",
+                  elapsed >= MIN_SEC ? "bg-lemon" : "bg-pink",
                 )}
                 style={{ width: `${reviewing && fromPicker ? 100 : pct}%` }}
               />
               <span
-                className="absolute -top-1 h-3.5 w-0.5 rounded bg-sky"
+                className="absolute -top-1 h-3.5 w-0.5 rounded bg-lemon"
                 style={{ left: `${(MIN_SEC / MAX_SEC) * 100}%` }}
               />
             </div>
@@ -473,7 +473,7 @@ export default function CapturePage() {
           >
             <div className="mb-4 flex items-center justify-between">
               <p className="text-lg font-bold">Hazır video seç</p>
-              <button onClick={() => setSheetOpen(false)} aria-label="Kapat" className="grid size-9 place-items-center rounded-full hover:bg-surface">
+              <button onClick={() => setSheetOpen(false)} aria-label="Kapat" className="grid size-9 place-items-center rounded-full hover:bg-canvas">
                 <X className="size-5" />
               </button>
             </div>

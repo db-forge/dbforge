@@ -16,6 +16,7 @@ import { createMissionTx, type TxState } from "@/lib/frontend/chain";
 import { useWalletStatus } from "@/lib/frontend/hooks";
 import { fileToCoverDataUrl } from "@/lib/frontend/media";
 import { CATEGORY_LABELS, type Category, type MissionPost } from "@/lib/frontend/types";
+import { CATEGORY_TONE, TONE_FILL } from "@/lib/frontend/tones";
 import { cn, formatMon } from "@/lib/frontend/utils";
 
 const DEFAULT_CRITERIA = [
@@ -206,7 +207,7 @@ export default function NewMissionPage() {
                   onClick={() => setCategory(c)}
                   className={cn(
                     "h-10 rounded-full border-[1.5px] border-line px-4 text-sm font-medium",
-                    category === c ? "border-primary bg-primary text-white" : "bg-surface hover:bg-ice",
+                    category === c ? TONE_FILL[CATEGORY_TONE[c]] : "bg-surface hover:bg-ice",
                   )}
                 >
                   {CATEGORY_LABELS[c]}
@@ -311,14 +312,14 @@ export default function NewMissionPage() {
           </div>
 
           {/* Lock summary + CTA */}
-          <div className="rounded-2xl bg-primary p-5 text-white">
+          <div className="rounded-2xl bg-pink p-5 text-black">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <p className="text-sm text-white/75">Kontrata kilitlenecek</p>
+                <p className="text-sm font-medium text-black/65">Kontrata kilitlenecek</p>
                 <p className="text-2xl font-bold tracking-tight tabular-nums sm:text-3xl">{lockText}</p>
               </div>
               {!createdId && (
-                <Button variant="ink" size="lg" className="h-13 shrink-0 px-6 font-bold" onClick={submit} disabled={!valid || busy}>
+                <Button variant="ink" size="lg" className="h-13 shrink-0 border-black bg-black px-6 font-bold text-white hover:bg-black/85" onClick={submit} disabled={!valid || busy}>
                   {busy && <Loader2 className="size-5 animate-spin" />}
                   {!isConnected ? "Cüzdan bağla ve devam et" : "Bütçeyi kilitle ve paylaş"}
                 </Button>
@@ -326,11 +327,11 @@ export default function NewMissionPage() {
             </div>
             {tx.stage !== "idle" && <TxStatus state={tx} className="mt-4 border-sky" />}
             {tx.stage === "error" && (
-              <Button variant="ink" className="mt-3 w-full" onClick={() => setTx({ stage: "idle" })}>
+              <Button variant="ink" className="mt-3 w-full border-black bg-black text-white hover:bg-black/85" onClick={() => setTx({ stage: "idle" })}>
                 <RotateCcw className="size-4" /> Tekrar dene
               </Button>
             )}
-            <p className="mt-3 font-mono text-[11px] text-white/70">
+            <p className="mt-3 font-mono text-[11px] text-black/60">
               Bütçe sadece kabul edilen videolara ödenir, kalanı iade edilebilir. Demo: başlıkta &ldquo;fail&rdquo;
               geçerse işlem hata verir.
             </p>

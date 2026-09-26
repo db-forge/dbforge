@@ -108,8 +108,8 @@ export default function BuyerMissionPage() {
               <BadgeCheck className="size-4" /> DATASET COMPLETE
             </span>
           ) : (
-            <span className="inline-flex h-9 items-center gap-1.5 rounded-full border-[1.5px] border-line bg-surface px-3.5 text-sm font-bold">
-              <span className="size-2 rounded-full bg-primary" /> Aktif
+            <span className="inline-flex h-9 items-center gap-1.5 rounded-full border-[1.5px] border-pink bg-surface px-3.5 text-sm font-bold text-pink">
+              <span className="size-2 animate-pulse rounded-full bg-pink" /> Aktif
             </span>
           )}
           <Button variant="outline" onClick={cancel} disabled={cancelling || complete} className="h-10 rounded-xl">
@@ -135,7 +135,7 @@ export default function BuyerMissionPage() {
         <ProgressBar
           value={mission.acceptedCount}
           max={mission.targetCount}
-          tone={complete ? "success" : "primary"}
+          tone={complete ? "success" : "lemon"}
           className="mt-3 h-3"
         />
       </Card>
@@ -143,13 +143,15 @@ export default function BuyerMissionPage() {
       {/* Stats */}
       <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat label="Harcanan bütçe">
-          <span className="text-accent">
+          <span className="text-lemon">
             {formatMon(data.spentMon, 1)} / {formatMon(data.budgetMon, 0)} MON
           </span>
         </Stat>
         <Stat label="Kabul">{data.accepted}</Stat>
         <Stat label="Red">{data.rejected}</Stat>
-        <Stat label="Ort. kalite">{Math.round(data.avgQuality * 100)}%</Stat>
+        <Stat label="Ort. kalite">
+          <span className="text-pink">{Math.round(data.avgQuality * 100)}%</span>
+        </Stat>
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
@@ -211,17 +213,17 @@ export default function BuyerMissionPage() {
         </Card>
 
         {/* Integrity */}
-        <Card className="flex flex-col p-5 lg:self-start">
-          <MonoLabel>Dataset integrity</MonoLabel>
-          <p className="mt-2 text-2xl font-bold tracking-tight text-success">VERIFIED</p>
-          <p className="mt-2 text-sm text-ink/70">
+        <Card className="flex flex-col border-primary bg-primary p-5 text-white lg:self-start">
+          <MonoLabel className="text-white/70">Dataset integrity</MonoLabel>
+          <p className="mt-2 text-3xl font-bold tracking-tight text-lemon">VERIFIED</p>
+          <p className="mt-2 text-sm text-white/80">
             Kabul edilen her klibin hash&apos;i Monad&apos;a yazılır. Ham videolar zincir dışında kalır.
           </p>
-          <div className="mt-4 rounded-xl bg-ice px-3 py-2.5 font-mono text-xs break-all">
+          <div className="mt-4 rounded-xl bg-black/30 px-3 py-2.5 font-mono text-xs break-all">
             merkle root {data.merkleRoot}
           </div>
           <Button
-            variant="outline"
+            variant="lemon"
             size="lg"
             className="mt-4 w-full rounded-xl font-bold"
             onClick={() =>
@@ -235,19 +237,19 @@ export default function BuyerMissionPage() {
             <Download className="size-4" /> Dataset indir
           </Button>
           {complete ? (
-            <p className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-success">
+            <p className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-lemon">
               <BadgeCheck className="size-4" /> DATASET COMPLETE · {mission.targetCount}/{mission.targetCount}
             </p>
           ) : (
-            <p className="mt-3 text-xs text-ink/55">
+            <p className="mt-3 text-xs text-white/70">
               {mission.targetCount}/{mission.targetCount} olduğunda &ldquo;DATASET COMPLETE&rdquo; olarak işaretlenir.
             </p>
           )}
-          <div className="mt-4 flex justify-between border-t border-sky pt-3 text-xs">
-            <Link href={`/mission/${mission.id}`} className="text-accent hover:underline">
+          <div className="mt-4 flex justify-between border-t border-white/20 pt-3 text-xs">
+            <Link href={`/mission/${mission.id}`} className="font-bold hover:underline">
               Akıştaki post →
             </Link>
-            <Link href="/buyer/new" className="text-accent hover:underline">
+            <Link href="/buyer/new" className="font-bold hover:underline">
               Yeni görev aç →
             </Link>
           </div>

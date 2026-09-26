@@ -46,7 +46,7 @@ export function SideNav() {
                   active ? "font-bold text-ink" : "text-ink",
                 )}
               >
-                <Icon className={cn("size-6 shrink-0", active && "text-accent")} strokeWidth={active ? 2.4 : 1.8} />
+                <Icon className={cn("size-6 shrink-0", active && "text-pink")} strokeWidth={active ? 2.4 : 1.8} />
                 <span className="hidden lg:inline">{label}</span>
               </Link>
             );
@@ -58,14 +58,14 @@ export function SideNav() {
         </Link>
         <Link
           href="/buyer"
-          className="hidden px-3 font-mono text-xs text-ink/55 hover:text-accent lg:block"
+          className="hidden px-3 font-mono text-xs text-ink/55 hover:text-pink lg:block"
         >
           Şirket paneli →
         </Link>
       </div>
 
       <div className="flex items-center gap-3 rounded-full p-1.5 lg:px-2">
-        <Avatar initials="SN" className="size-10 border-sky bg-ice text-xs" />
+        <Avatar initials="SN" className="size-10 border-lemon bg-lemon text-xs text-black" />
         <div className="hidden min-w-0 lg:block">
           <p className="text-sm font-bold leading-tight">Sen</p>
           <p className="truncate font-mono text-xs text-ink/60">

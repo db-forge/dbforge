@@ -11,7 +11,7 @@ export function ProgressBar({
   max: number;
   className?: string;
   size?: "sm" | "md" | "lg";
-  tone?: "primary" | "success";
+  tone?: "primary" | "success" | "pink" | "lemon";
 }) {
   const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
   return (
@@ -31,7 +31,7 @@ export function ProgressBar({
       <div
         className={cn(
           "h-full rounded-full transition-[width] duration-500",
-          tone === "success" ? "bg-success" : "bg-primary",
+          { primary: "bg-primary", success: "bg-success", pink: "bg-pink", lemon: "bg-lemon" }[tone],
         )}
         style={{ width: `${pct}%` }}
       />

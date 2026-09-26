@@ -28,7 +28,9 @@ export function Logo({
   return (
     <div className="flex min-w-0 items-baseline gap-1.5">
       <Link href={href} className="shrink-0">
-        {compact ? <LogoMark /> : <span className="text-2xl font-bold tracking-tight">DBForge</span>}
+        {compact ? <LogoMark /> : <span className="text-2xl font-bold tracking-tight">
+            DB<span className="text-pink">Forge</span>
+          </span>}
       </Link>
       {crumb && <span className="truncate text-sm text-ink/60">/ {crumb}</span>}
     </div>
