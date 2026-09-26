@@ -310,10 +310,10 @@ export default function NewMissionPage() {
 
             <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border-[1.5px] border-ink bg-ice p-4">
               <p className="font-mono text-sm tabular-nums">
-                {targetNum} × {formatMon(rewardNum)} =
+                {targetNum} × {formatMon(rewardNum)} MON =
               </p>
               <p className="flex items-baseline gap-2">
-                <MonAmount value={budget} size="lg" />
+                <MonAmount value={budget} size="lg" digits={0} />
                 <span className="text-sm text-ink/70">kilitlenecek</span>
               </p>
             </div>

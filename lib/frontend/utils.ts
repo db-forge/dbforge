@@ -21,7 +21,8 @@ export function shortAddr(addr?: string | null, head = 6, tail = 4) {
 }
 
 export function formatMon(value: number, digits = 2) {
-  return value.toLocaleString("tr-TR", {
+  // Crypto amounts use a dot decimal separator (0.10 MON), even in the Turkish UI.
+  return value.toLocaleString("en-US", {
     minimumFractionDigits: digits,
     maximumFractionDigits: Math.max(digits, 4),
   });
