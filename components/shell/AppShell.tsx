@@ -5,7 +5,6 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/frontend/utils";
 import { SessionMenu } from "../auth/SessionMenu";
-import { ConnectWallet } from "../ConnectWallet";
 import { useT } from "../I18nProvider";
 import { LanguageSwitch } from "../LanguageSwitch";
 import { BottomTabs } from "./BottomTabs";
@@ -47,15 +46,7 @@ export function AppShell({
   hideRightPanel?: boolean;
 }) {
   const t = useT();
-  const right =
-    actions ??
-    (hideRightPanel ? (
-      <ConnectWallet compact />
-    ) : (
-      <div className="lg:hidden">
-        <ConnectWallet compact />
-      </div>
-    ));
+  const right = actions ?? null;
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-[1280px] justify-center">

@@ -22,6 +22,10 @@ export interface MissionDto {
   targetCount: number;
   acceptedCount: number;
   status: ApiMissionStatus;
+  category: "teknoloji" | "doga" | "gundelik";
+  coverUrl: string | null;
+  perUserLimit: number;
+  criteria: string[];
   createdAt: string;
 }
 

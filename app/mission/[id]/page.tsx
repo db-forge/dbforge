@@ -16,7 +16,7 @@ import { AppShell } from "@/components/shell/AppShell";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Card, MonoLabel, Skeleton } from "@/components/ui/card";
 import { getMission, getMySubmissions, registerMission, toggleSave } from "@/lib/frontend/api";
-import { useApi } from "@/lib/frontend/hooks";
+import { useApi, useSession } from "@/lib/frontend/hooks";
 import { useRequireContributor } from "@/components/auth/RequireSession";
 import { cn, formatMon } from "@/lib/frontend/utils";
 
@@ -28,6 +28,8 @@ export default function MissionDetailPage() {
   const { data: mission, loading } = useApi(() => getMission(id), [id]);
   const { data: mySubs } = useApi(() => getMySubmissions(id), [id]);
   const requireContributor = useRequireContributor();
+  const { session } = useSession();
+  const isCompany = session?.kind === "company";
   const [starting, setStarting] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
 
@@ -219,16 +221,18 @@ export default function MissionDetailPage() {
       </div>
 
       {/* CTA — fixed on mobile, sticky at the column bottom on desktop */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t-[1.5px] border-border bg-surface px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] md:sticky md:mt-6 md:border-t-[1.5px]">
-        <Button size="lg" className="h-14 w-full text-base font-bold" onClick={start} disabled={starting || completed || limitReached}>
-          {cta}
-        </Button>
-        {!mission.isRegistered && !completed && (
+      {!isCompany && (
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t-[1.5px] border-border bg-surface px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] md:sticky md:mt-6 md:border-t-[1.5px]">
+          <Button size="lg" className="h-14 w-full text-base font-bold" onClick={start} disabled={starting || completed || limitReached}>
+            {cta}
+          </Button>
+          {!mission.isRegistered && !completed && (
           <p className="mt-2 text-center font-mono text-[11px] text-muted">
             {t.mission.ctaHint(mission.registeredCount, mission.perUserLimit)}
           </p>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </AppShell>
   );
 }

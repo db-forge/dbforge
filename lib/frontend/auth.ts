@@ -5,7 +5,7 @@
 // The frontend never talks to Supabase Auth directly.
 import * as mock from "./auth-mock";
 import type { CompanyRegisterInput, FieldErrors } from "./auth-validation";
-import { IS_LIVE } from "./config";
+import { IS_AUTH_LIVE } from "./config";
 import { ApiRequestError, apiFetch } from "./http";
 
 export type Session =
@@ -70,7 +70,7 @@ export function subscribeSession(listener: () => void) {
 
 /** Reads the session from the backend (or mock) and updates every subscriber. */
 export function refreshSession(): Promise<Session | null> {
-  inflight ??= (IS_LIVE ? call<{ session: Session | null }>("/api/auth/session", undefined, "GET").then((r) => r.session) : mock.getSession())
+  inflight ??= (IS_AUTH_LIVE ? call<{ session: Session | null }>("/api/auth/session", undefined, "GET").then((r) => r.session) : mock.getSession())
     .catch(() => null)
     .then(setSession)
     .finally(() => {
@@ -87,7 +87,7 @@ export function currentSession() {
 // ---------- session ----------
 
 export async function logout() {
-  if (IS_LIVE) await call<null>("/api/auth/logout");
+  if (IS_AUTH_LIVE) await call<null>("/api/auth/logout");
   else await mock.logout();
   setSession(null);
 }
@@ -95,14 +95,14 @@ export async function logout() {
 // ---------- company ----------
 
 export async function registerCompany(input: CompanyRegisterInput): Promise<Session> {
-  const session = IS_LIVE
+  const session = IS_AUTH_LIVE
     ? (await call<{ session: Session }>("/api/auth/company/register", input)).session
     : await mock.registerCompany(input);
   return setSession(session)!;
 }
 
 export async function loginCompany(email: string, password: string): Promise<Session> {
-  const session = IS_LIVE
+  const session = IS_AUTH_LIVE
     ? (await call<{ session: Session }>("/api/auth/company/login", { email, password })).session
     : await mock.loginCompany(email, password);
   return setSession(session)!;
@@ -110,20 +110,20 @@ export async function loginCompany(email: string, password: string): Promise<Ses
 
 /** Always resolves for a valid email (no account enumeration). */
 export async function requestPasswordReset(email: string): Promise<void> {
-  if (IS_LIVE) await call<null>("/api/auth/company/password-reset", { email });
+  if (IS_AUTH_LIVE) await call<null>("/api/auth/company/password-reset", { email });
   else await mock.requestPasswordReset(email);
 }
 
 export async function requestCompanyWalletNonce(address: string): Promise<NonceResponse> {
   // The contract lists no body for this call; the address is sent so the server can
   // put it into the SIWE message (see open question in the A1 report).
-  return IS_LIVE
+  return IS_AUTH_LIVE
     ? call<NonceResponse>("/api/auth/company/wallet/nonce", { address })
     : mock.requestCompanyWalletNonce(address);
 }
 
 export async function linkCompanyWallet(message: string, signature: string): Promise<Session> {
-  const session = IS_LIVE
+  const session = IS_AUTH_LIVE
     ? (await call<{ session: Session }>("/api/auth/company/wallet/link", { message, signature })).session
     : await mock.linkCompanyWallet(message, signature);
   return setSession(session)!;
@@ -132,7 +132,7 @@ export async function linkCompanyWallet(message: string, signature: string): Pro
 // ---------- contributor (SIWE) ----------
 
 export async function requestWalletNonce(address: string): Promise<NonceResponse> {
-  return IS_LIVE ? call<NonceResponse>("/api/auth/wallet/nonce", { address }) : mock.requestWalletNonce(address);
+  return IS_AUTH_LIVE ? call<NonceResponse>("/api/auth/wallet/nonce", { address }) : mock.requestWalletNonce(address);
 }
 
 export async function verifyWallet(
@@ -140,7 +140,7 @@ export async function verifyWallet(
   signature: string,
   displayName?: string,
 ): Promise<{ session: Session; created: boolean }> {
-  const result = IS_LIVE
+  const result = IS_AUTH_LIVE
     ? await call<{ session: Session; created: boolean }>("/api/auth/wallet/verify", { message, signature, displayName })
     : await mock.verifyWallet(message, signature, displayName);
   setSession(result.session);
@@ -148,7 +148,7 @@ export async function verifyWallet(
 }
 
 export async function updateContributorProfile(displayName: string): Promise<Session> {
-  const session = IS_LIVE
+  const session = IS_AUTH_LIVE
     ? (await call<{ session: Session }>("/api/auth/contributor/profile", { displayName }, "PATCH")).session
     : await mock.updateContributorProfile(displayName);
   return setSession(session)!;

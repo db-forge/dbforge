@@ -15,7 +15,7 @@ import type { MissionRow, MissionStatus } from "./types";
 // identified but deliberately deferred during M0-M3 (see project memory);
 // M4 fixes it because settlement math cannot tolerate float coercion.
 const MISSION_COLUMNS =
-  "id, chain_mission_id::text, buyer_address, title, description, reward_mon::text, target_count, accepted_count, status, created_at";
+  "id, chain_mission_id::text, buyer_address, title, description, reward_mon::text, target_count, accepted_count, status, category, cover_url, per_user_limit, criteria, created_at";
 
 export interface ListMissionsParams {
   status?: MissionStatus;
@@ -91,6 +91,10 @@ export interface CreateMissionFromChainEventInput {
   targetCount: number;
   title: string;
   description: string;
+  category: MissionRow["category"];
+  coverUrl: string | null;
+  perUserLimit: number;
+  criteria: string[];
 }
 
 /**
@@ -117,6 +121,10 @@ export async function createMissionFromChainEvent(
       buyer_address: input.buyerAddress,
       title: input.title,
       description: input.description,
+      category: input.category,
+      cover_url: input.coverUrl,
+      per_user_limit: input.perUserLimit,
+      criteria: input.criteria,
       reward_mon: input.rewardMon,
       target_count: input.targetCount,
       status: "active",

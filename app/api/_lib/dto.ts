@@ -24,6 +24,10 @@ export interface MissionDto {
   targetCount: number;
   acceptedCount: number;
   status: MissionRow["status"];
+  category: MissionRow["category"];
+  coverUrl: string | null;
+  perUserLimit: number;
+  criteria: string[];
   createdAt: string;
 }
 
@@ -252,6 +256,10 @@ export function toMissionDto(row: MissionRow): MissionDto {
     targetCount: row.target_count,
     acceptedCount: row.accepted_count,
     status: row.status,
+    category: row.category,
+    coverUrl: row.cover_url,
+    perUserLimit: row.per_user_limit,
+    criteria: row.criteria,
     createdAt: row.created_at,
   };
 }

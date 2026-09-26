@@ -31,6 +31,10 @@ export interface MissionRow {
   target_count: number;
   accepted_count: number;
   status: MissionStatus;
+  category: "teknoloji" | "doga" | "gundelik";
+  cover_url: string | null;
+  per_user_limit: number;
+  criteria: string[];
   created_at: string;
 }
 

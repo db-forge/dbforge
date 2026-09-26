@@ -380,6 +380,24 @@ export async function getWallet(): Promise<WalletSummary> {
 // ---------- buyer ----------
 
 export async function createMission(data: CreateMissionInput): Promise<MissionPost> {
+  if (IS_LIVE) {
+    if (!data.txHash) throw new Error(t().errors.requestFailed);
+    const mission = await live.persistMission({
+      txHash: data.txHash,
+      title: data.title,
+      description: data.description,
+      category: data.category,
+      coverUrl: data.coverUrl ?? null,
+      perUserLimit: data.perUserLimit,
+      criteria: data.criteria,
+    });
+    liveMissions = [mission, ...liveMissions.filter((item) => item.id !== mission.id)];
+    liveLoaded = true;
+    mutate((state) => {
+      state.createdMissions = state.createdMissions.filter((item) => item.id !== mission.id);
+    });
+    return toPost(mission);
+  }
   await sleep(LATENCY);
   const id = `m-${Date.now().toString(36)}`;
   const mission: MockMission = {

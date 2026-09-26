@@ -51,20 +51,46 @@ export function toMockMission(dto: MissionDto): MockMission {
     acceptedCount: dto.acceptedCount,
     status: dto.status,
     company: seed?.company ?? companyFor(dto.buyerAddress),
-    category: seed?.category ?? "gundelik",
-    coverUrl: seed?.coverUrl ?? "",
+    category: dto.category ?? seed?.category ?? "gundelik",
+    coverUrl: dto.coverUrl ?? seed?.coverUrl ?? "",
     sampleVideoUrl: seed?.sampleVideoUrl ?? "",
     createdAt: dto.createdAt,
     registeredCount: seed?.registeredCount ?? 0,
-    perUserLimit: seed?.perUserLimit ?? 5,
+    perUserLimit: dto.perUserLimit ?? seed?.perUserLimit ?? 5,
     minDurationSec: 10,
-    criteria: criteriaFrom(dto.description, dto.title),
+    criteria: dto.criteria?.length ? dto.criteria : criteriaFrom(dto.description, dto.title),
   };
 }
 
 export async function fetchMissions(): Promise<MockMission[]> {
   const { missions } = await apiFetch<{ missions: MissionDto[] }>("/api/missions");
   return missions.filter((m) => m.status === "active" || m.status === "completed").map(toMockMission);
+}
+
+/** Mirrors an already-confirmed MissionCreated transaction into Supabase. */
+export async function persistMission(input: {
+  txHash: string;
+  title: string;
+  description: string;
+  category: "teknoloji" | "doga" | "gundelik";
+  coverUrl: string | null;
+  perUserLimit: number;
+  criteria: string[];
+}): Promise<MockMission> {
+  // The wallet helper waits for the receipt, but an RPC replica can briefly
+  // lag behind. Retry only the API's explicit PENDING response.
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const result = await apiFetch<{ mission?: MissionDto; code?: string }>("/api/missions", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    if (result.mission) return toMockMission(result.mission);
+    if (result.code !== "PENDING") break;
+    await new Promise((resolve) => setTimeout(resolve, 750 * (attempt + 1)));
+  }
+  throw new Error(t().errors.requestFailed);
 }
 
 /** null when the id is unknown (or not a UUID, which the API rejects with 400). */

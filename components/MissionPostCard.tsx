@@ -7,6 +7,7 @@ import { registerMission, toggleSave } from "@/lib/frontend/api";
 import type { MissionPost } from "@/lib/frontend/types";
 import { cn, timeAgo } from "@/lib/frontend/utils";
 import { useRequireContributor } from "./auth/RequireSession";
+import { useSession } from "@/lib/frontend/hooks";
 import { CompanyAvatar } from "./CompanyAvatar";
 import { CoverImage } from "./CoverImage";
 import { useT } from "./I18nProvider";
@@ -29,6 +30,8 @@ export function MissionPostCard({
   const toast = useToast();
   const t = useT();
   const requireContributor = useRequireContributor();
+  const { session } = useSession();
+  const isCompany = session?.kind === "company";
   const [busy, setBusy] = useState(false);
   const remaining = Math.max(0, mission.targetCount - mission.acceptedCount);
   const completed = mission.status === "completed";
@@ -88,11 +91,11 @@ export function MissionPostCard({
               <span className="inline-flex h-8 animate-pop items-center gap-1 rounded-full border-[1.5px] border-money bg-transparent px-3.5 text-sm font-bold text-money">
                 {t.post.registered} <Check className="size-4" />
               </span>
-            ) : (
+            ) : !isCompany ? (
               <Button size="sm" onClick={onRegister} disabled={busy} className="font-bold">
                 {t.post.register}
               </Button>
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -109,7 +112,7 @@ export function MissionPostCard({
         </Link>
 
         {/* Personal progress — only after registering */}
-        {mission.isRegistered && !completed && (
+        {!isCompany && mission.isRegistered && !completed && (
           <div className="mt-3 animate-toast-in rounded-md border-[1.5px] border-border bg-surface px-3.5 py-3">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-4">
               <div className="min-w-0 flex-1">

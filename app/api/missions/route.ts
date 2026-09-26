@@ -52,12 +52,35 @@ export async function POST(request: NextRequest) {
     // targetCount, all of which come from the verified chain event below.
     const title = requireString(body, "title");
     const description = requireString(body, "description");
+    const category = body.category;
+    if (category !== "teknoloji" && category !== "doga" && category !== "gundelik") {
+      throw ApiError.validation("category must be one of: teknoloji, doga, gundelik.", { field: "category" });
+    }
+    const coverUrl = body.coverUrl;
+    if (coverUrl !== null && coverUrl !== undefined && (typeof coverUrl !== "string" || coverUrl.length > 2_000_000)) {
+      throw ApiError.validation("coverUrl must be a string up to 2 MB.", { field: "coverUrl" });
+    }
+    const perUserLimit = body.perUserLimit;
+    if (!Number.isSafeInteger(perUserLimit) || (perUserLimit as number) < 1) {
+      throw ApiError.validation("perUserLimit must be a positive integer.", { field: "perUserLimit" });
+    }
+    const criteria = body.criteria;
+    if (
+      !Array.isArray(criteria) ||
+      criteria.length > 20 ||
+      !criteria.every((item) => typeof item === "string" && item.trim().length > 0 && item.length <= 300)
+    ) {
+      throw ApiError.validation("criteria must contain at most 20 non-empty strings.", { field: "criteria" });
+    }
 
     const event = await getMissionEventReader().readMissionCreated({ txHash });
 
     if (event === null) {
       // No receipt yet — not an error. The client should retry shortly.
       return NextResponse.json({ code: "PENDING", message: "Transaction not yet mined." }, { status: 202 });
+    }
+    if ((perUserLimit as number) > event.targetCount) {
+      throw ApiError.validation("perUserLimit cannot exceed targetCount.", { field: "perUserLimit" });
     }
 
     const { mission, created } = await createMissionFromChainEvent({
@@ -67,6 +90,10 @@ export async function POST(request: NextRequest) {
       targetCount: event.targetCount,
       title,
       description,
+      category,
+      coverUrl: typeof coverUrl === "string" ? coverUrl : null,
+      perUserLimit: perUserLimit as number,
+      criteria: criteria as string[],
     });
 
     return NextResponse.json({ mission: toMissionDto(mission) }, { status: created ? 201 : 200 });

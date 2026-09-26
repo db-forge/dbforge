@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ConnectWallet } from "@/components/ConnectWallet";
+import { SessionMenu } from "@/components/auth/SessionMenu";
 import { LandingStats, LiveMissions } from "@/components/landing/LiveMissions";
 import { Burst } from "@/components/Burst";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
@@ -33,7 +33,7 @@ export default async function HomePage() {
           <div className="flex items-center gap-3">
             <LanguageSwitch />
             <NetworkPill className="hidden sm:inline-flex" />
-            <ConnectWallet />
+            <SessionMenu />
           </div>
         </div>
       </header>

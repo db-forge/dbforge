@@ -3,22 +3,34 @@
 import { ArrowRight, ImagePlus, Loader2, Plus, RotateCcw, X } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useRef, useState, type ReactNode } from "react";
+import { usePublicClient, useWalletClient } from "wagmi";
 import { CompanyWalletLinkCard } from "@/components/auth/CompanyWalletLinkCard";
 import { useConnectWallet } from "@/components/ConnectWallet";
 import { CoverImage } from "@/components/CoverImage";
-import { useT } from "@/components/I18nProvider";
+import { useLocale, useT } from "@/components/I18nProvider";
 import { MissionPostCard } from "@/components/MissionPostCard";
 import { BuyerShell } from "@/components/shell/BuyerShell";
 import { useToast } from "@/components/Toaster";
 import { TxStatus } from "@/components/TxStatus";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Card, MonoLabel } from "@/components/ui/card";
-import { createMission, currentBuyer } from "@/lib/frontend/api";
+import { createMission as persistMission, currentBuyer } from "@/lib/frontend/api";
 import { createMissionTx, type TxState } from "@/lib/frontend/chain";
+import { IS_LIVE } from "@/lib/frontend/config";
 import { useSession, useWalletStatus } from "@/lib/frontend/hooks";
 import { fileToCoverDataUrl } from "@/lib/frontend/media";
 import { CATEGORIES, type Category, type MissionPost } from "@/lib/frontend/types";
 import { cn, formatMon, shortAddr } from "@/lib/frontend/utils";
+import { metadataHash } from "@/lib/monad/mission";
+import {
+  createMission as createMissionOnChain,
+  isDbforgeClientError,
+  loadClientConfig,
+  parseMonAmount,
+  type ClientContext,
+} from "@/lib/monad/client";
+
+const chainConfig = loadClientConfig();
 
 const inputClass =
   "w-full rounded-xl border-[1.5px] border-border bg-surface px-4 py-3 text-[15px] outline-none placeholder:text-muted focus:border-primary";
@@ -68,6 +80,9 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 export default function NewMissionPage() {
   const toast = useToast();
   const t = useT();
+  const locale = useLocale();
+  const publicClient = usePublicClient();
+  const { data: walletClient } = useWalletClient();
   const { isConnected, address } = useWalletStatus();
   const { session } = useSession();
   // The on-chain buyer must be the company's linked wallet (contract §4, BUYER_MISMATCH).
@@ -158,24 +173,53 @@ export default function NewMissionPage() {
       connectWallet();
       return;
     }
-    const result = await createMissionTx({ title, rewardMon: rewardNum, targetCount: targetNum }, setTx);
-    if (result.stage !== "success") {
-      toast({ kind: "error", title: t.buyer.txFailed, description: result.error });
-      return;
+    try {
+      let txHash: string | undefined;
+      if (IS_LIVE) {
+        if (!publicClient || !walletClient) {
+          connectWallet();
+          return;
+        }
+        setTx({ stage: "awaiting_signature" });
+        const context: ClientContext = { publicClient, walletClient, config: chainConfig };
+        const created = await createMissionOnChain(context, {
+          metadataHash: metadataHash({
+            title: title.trim(),
+            description: description.trim(),
+            requirements: criteria,
+          }),
+          rewardPerSubmission: parseMonAmount(reward),
+          targetCount: targetNum,
+        });
+        txHash = created.txHash;
+        setTx({ stage: "success", hash: txHash });
+      } else {
+        const result = await createMissionTx({ title, rewardMon: rewardNum, targetCount: targetNum }, setTx);
+        if (result.stage !== "success") {
+          toast({ kind: "error", title: t.buyer.txFailed, description: result.error });
+          return;
+        }
+        txHash = result.hash;
+      }
+
+      const mission = await persistMission({
+        title: title.trim(),
+        category,
+        description: description.trim(),
+        criteria,
+        rewardMon: rewardNum,
+        targetCount: targetNum,
+        perUserLimit: limitNum,
+        coverUrl: cover ?? undefined,
+        txHash,
+      });
+      setCreatedId(mission.id);
+      toast({ kind: "success", title: t.buyer.published, description: t.buyer.lockedToast(formatMon(budget)) });
+    } catch (error) {
+      const description = isDbforgeClientError(error) ? error.localized(locale) : (error as Error).message;
+      setTx({ stage: "error", error: description });
+      toast({ kind: "error", title: t.buyer.txFailed, description });
     }
-    const mission = await createMission({
-      title: title.trim(),
-      category,
-      description: description.trim(),
-      criteria,
-      rewardMon: rewardNum,
-      targetCount: targetNum,
-      perUserLimit: limitNum,
-      coverUrl: cover ?? undefined,
-      txHash: result.hash,
-    });
-    setCreatedId(mission.id);
-    toast({ kind: "success", title: t.buyer.published, description: t.buyer.lockedToast(formatMon(budget)) });
   }
 
   const lockText = `${targetNum} × ${formatMon(rewardNum)} = ${formatMon(budget, 0)} MON`;
