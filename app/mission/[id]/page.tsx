@@ -17,6 +17,7 @@ import { Button, LinkButton } from "@/components/ui/button";
 import { Card, MonoLabel, Skeleton } from "@/components/ui/card";
 import { getMission, getMySubmissions, registerMission, toggleSave } from "@/lib/frontend/api";
 import { useApi } from "@/lib/frontend/hooks";
+import { useRequireContributor } from "@/components/auth/RequireSession";
 import { cn, formatMon } from "@/lib/frontend/utils";
 
 export default function MissionDetailPage() {
@@ -26,6 +27,7 @@ export default function MissionDetailPage() {
   const t = useT();
   const { data: mission, loading } = useApi(() => getMission(id), [id]);
   const { data: mySubs } = useApi(() => getMySubmissions(id), [id]);
+  const requireContributor = useRequireContributor();
   const [starting, setStarting] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
 
@@ -57,7 +59,7 @@ export default function MissionDetailPage() {
   const remaining = Math.max(0, mission.targetCount - mission.acceptedCount);
 
   async function start() {
-    if (!mission) return;
+    if (!mission || !requireContributor(`/mission/${mission.id}`)) return;
     setStarting(true);
     try {
       if (!mission.isRegistered) {

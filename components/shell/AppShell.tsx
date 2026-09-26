@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/frontend/utils";
+import { SessionMenu } from "../auth/SessionMenu";
 import { ConnectWallet } from "../ConnectWallet";
 import { useT } from "../I18nProvider";
 import { LanguageSwitch } from "../LanguageSwitch";
@@ -95,6 +96,7 @@ export function AppShell({
             <div className="flex shrink-0 items-center gap-2">
               <LanguageSwitch variant="toggle" className="md:hidden" />
               {right}
+              <SessionMenu className="md:hidden" />
             </div>
           </div>
           {subheader}

@@ -3,6 +3,7 @@
 import { ArrowRight, ImagePlus, Loader2, Plus, RotateCcw, X } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useRef, useState, type ReactNode } from "react";
+import { CompanyWalletLinkCard } from "@/components/auth/CompanyWalletLinkCard";
 import { useConnectWallet } from "@/components/ConnectWallet";
 import { CoverImage } from "@/components/CoverImage";
 import { useT } from "@/components/I18nProvider";
@@ -12,12 +13,12 @@ import { useToast } from "@/components/Toaster";
 import { TxStatus } from "@/components/TxStatus";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Card, MonoLabel } from "@/components/ui/card";
-import { createMission, CURRENT_BUYER } from "@/lib/frontend/api";
+import { createMission, currentBuyer } from "@/lib/frontend/api";
 import { createMissionTx, type TxState } from "@/lib/frontend/chain";
-import { useWalletStatus } from "@/lib/frontend/hooks";
+import { useSession, useWalletStatus } from "@/lib/frontend/hooks";
 import { fileToCoverDataUrl } from "@/lib/frontend/media";
 import { CATEGORIES, type Category, type MissionPost } from "@/lib/frontend/types";
-import { cn, formatMon } from "@/lib/frontend/utils";
+import { cn, formatMon, shortAddr } from "@/lib/frontend/utils";
 
 const inputClass =
   "w-full rounded-xl border-[1.5px] border-border bg-surface px-4 py-3 text-[15px] outline-none placeholder:text-muted focus:border-primary";
@@ -67,7 +68,11 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 export default function NewMissionPage() {
   const toast = useToast();
   const t = useT();
-  const { isConnected } = useWalletStatus();
+  const { isConnected, address } = useWalletStatus();
+  const { session } = useSession();
+  // The on-chain buyer must be the company's linked wallet (contract §4, BUYER_MISMATCH).
+  const linkedWallet = session?.kind === "company" ? session.walletAddress : null;
+  const walletMismatch = !!linkedWallet && isConnected && address?.toLowerCase() !== linkedWallet.toLowerCase();
   const { connectWallet } = useConnectWallet();
 
   const [title, setTitle] = useState("");
@@ -109,7 +114,7 @@ export default function NewMissionPage() {
       targetCount: Math.max(targetNum, 1),
       acceptedCount: 0,
       status: "active",
-      company: CURRENT_BUYER,
+      company: currentBuyer(),
       category,
       coverUrl: cover ?? "",
       sampleVideoUrl: "",
@@ -148,7 +153,7 @@ export default function NewMissionPage() {
   }
 
   async function submit() {
-    if (!valid || busy) return;
+    if (!valid || busy || !linkedWallet || walletMismatch) return;
     if (!isConnected) {
       connectWallet();
       return;
@@ -181,6 +186,14 @@ export default function NewMissionPage() {
         {/* Form */}
         <div className="space-y-5">
           <h1 className="text-3xl font-bold tracking-tight">{t.buyer.newTitle}</h1>
+
+          {!linkedWallet && <CompanyWalletLinkCard />}
+          {walletMismatch && (
+            <div role="alert" className="rounded-2xl border-[1.5px] border-danger bg-surface p-4 text-sm">
+              <p className="font-bold text-danger">{t.session.walletMismatchTitle}</p>
+              <p className="mt-1 text-muted">{t.session.walletMismatch(shortAddr(linkedWallet, 6, 4))}</p>
+            </div>
+          )}
 
           <Field label={t.buyer.fields.title} hint={errors.title && title ? errors.title : undefined}>
             <input
@@ -315,7 +328,7 @@ export default function NewMissionPage() {
                 <p className="text-2xl font-bold tracking-tight text-money tabular-nums sm:text-3xl">{lockText}</p>
               </div>
               {!createdId && (
-                <Button size="lg" className="h-13 shrink-0 px-6 font-bold" onClick={submit} disabled={!valid || busy}>
+                <Button size="lg" className="h-13 shrink-0 px-6 font-bold" onClick={submit} disabled={!valid || busy || !linkedWallet || walletMismatch}>
                   {busy && <Loader2 className="size-5 animate-spin" />}
                   {!isConnected ? t.buyer.connectAndContinue : t.buyer.lockAndPublish}
                 </Button>
