@@ -350,6 +350,7 @@ export const tr = {
     noMissionsDesc: "İlk veri görevini aç; bütçe kontrata kilitlenir, kabul edilen her video ödenir.",
   },
   errors: {
+    contributorOnly: "Göreve yalnız katkı sahibi hesabıyla katılabilirsin",
     missionCompleted: "Bu görev tamamlandı",
     uploadLimit: "Bu görev için yükleme limitine ulaştın",
     connectFirst: "Ödeme alabilmek için önce cüzdanını bağla",

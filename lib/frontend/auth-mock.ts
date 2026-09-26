@@ -169,13 +169,10 @@ function signIn(db: AuthDb, kind: Session["kind"], subjectId: string): Session {
   return resolveSession(db)!;
 }
 
-/** Wallets may be a contributor OR a company wallet, never both (contract §3). */
-function walletTaken(db: AuthDb, address: string, exceptUserId?: string) {
+/** One wallet may only identify one account inside the same role. */
+function companyWalletTaken(db: AuthDb, address: string, exceptUserId?: string) {
   const a = address.toLowerCase();
-  return (
-    db.contributors.some((x) => x.walletAddress === a && x.userId !== exceptUserId) ||
-    db.companies.some((x) => x.walletAddress === a && x.userId !== exceptUserId)
-  );
+  return db.companies.some((x) => x.walletAddress === a && x.userId !== exceptUserId);
 }
 
 function displayNameTaken(db: AuthDb, name: string, exceptUserId?: string) {
@@ -316,10 +313,6 @@ export async function verifyWallet(
   let user = db.contributors.find((x) => x.walletAddress === address);
   const created = !user;
   if (!user) {
-    if (walletTaken(db, address)) {
-      writeDb(db);
-      fail(409, "WALLET_IN_USE");
-    }
     const name = displayName?.trim() || null;
     if (name) {
       const code = validateDisplayName(name);
@@ -361,7 +354,7 @@ export async function linkCompanyWallet(message: string, signature: string): Pro
   if (session?.kind !== "company") fail(401, "UNAUTHENTICATED");
   const { address, nonce } = await consumeSignedMessage(db, message, signature, "company_wallet_link");
   if (nonce.subjectId !== session.userId) fail(400, "NONCE_INVALID");
-  if (walletTaken(db, address, session.userId)) {
+  if (companyWalletTaken(db, address, session.userId)) {
     writeDb(db);
     fail(409, "WALLET_IN_USE");
   }

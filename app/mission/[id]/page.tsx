@@ -182,7 +182,7 @@ export default function MissionDetailPage() {
         </Card>
 
         {/* Personal progress */}
-        {mission.isRegistered && (
+        {!isCompany && mission.isRegistered && (
           <Card className="p-4">
             <div className="flex items-center justify-between text-sm">
               <span className="font-bold text-text">{t.common.yourUploads}</span>

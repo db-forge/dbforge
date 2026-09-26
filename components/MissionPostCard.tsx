@@ -87,15 +87,15 @@ export function MissionPostCard({
               <span className="inline-flex h-8 items-center rounded-full border-[1.5px] border-muted bg-transparent px-3 text-sm font-bold text-muted">
                 {t.status.completed}
               </span>
-            ) : mission.isRegistered ? (
+            ) : isCompany ? null : mission.isRegistered ? (
               <span className="inline-flex h-8 animate-pop items-center gap-1 rounded-full border-[1.5px] border-money bg-transparent px-3.5 text-sm font-bold text-money">
                 {t.post.registered} <Check className="size-4" />
               </span>
-            ) : !isCompany ? (
+            ) : (
               <Button size="sm" onClick={onRegister} disabled={busy} className="font-bold">
                 {t.post.register}
               </Button>
-            ) : null}
+            )}
           </div>
         </div>
 

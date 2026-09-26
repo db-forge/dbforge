@@ -344,6 +344,7 @@ export const en: Dict = {
     noMissionsDesc: "Post your first data mission: the budget is locked in the contract and every accepted video is paid.",
   },
   errors: {
+    contributorOnly: "Only contributor accounts can join a mission",
     missionCompleted: "This mission is completed",
     uploadLimit: "You've reached the upload limit for this mission",
     connectFirst: "Connect your wallet first to receive payments",

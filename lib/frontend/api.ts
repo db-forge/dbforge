@@ -64,6 +64,7 @@ function ownedByBuyer(m: MockMission) {
 
 function toPost(m: MockMission): MissionPost {
   const s = getState();
+  const contributorSession = currentSession()?.kind === "contributor";
   const mine = s.submissions.filter((x) => x.missionId === m.id);
   const accepted = mine.filter((x) => x.result === "accepted").length;
   const reviewing = mine.filter((x) => x.result === "review" || x.result === null).length;
@@ -77,14 +78,14 @@ function toPost(m: MockMission): MissionPost {
     acceptedCount,
     status: acceptedCount >= m.targetCount ? "completed" : m.status,
     registeredCount: m.registeredCount + (s.registeredDelta[m.id] ?? 0),
-    isRegistered: s.registered.includes(m.id),
+    isRegistered: contributorSession && s.registered.includes(m.id),
     isSaved: s.saved.includes(m.id),
-    myUploads: accepted + reviewing,
-    myAccepted: accepted,
-    myReviewing: reviewing,
-    myRejected: mine.filter((x) => x.result === "rejected").length,
-    myEarnedMon: accepted * m.rewardMon,
-    myLastRejectReason: latest?.result === "rejected" ? latest.rejectReason : undefined,
+    myUploads: contributorSession ? accepted + reviewing : 0,
+    myAccepted: contributorSession ? accepted : 0,
+    myReviewing: contributorSession ? reviewing : 0,
+    myRejected: contributorSession ? mine.filter((x) => x.result === "rejected").length : 0,
+    myEarnedMon: contributorSession ? accepted * m.rewardMon : 0,
+    myLastRejectReason: contributorSession && latest?.result === "rejected" ? latest.rejectReason : undefined,
   };
 }
 
@@ -202,6 +203,7 @@ async function ensureMission(id: string) {
 }
 
 export async function registerMission(id: string): Promise<MissionPost> {
+  if (currentSession()?.kind !== "contributor") throw new Error(t().errors.contributorOnly);
   if (!IS_LIVE) await sleep(150);
   const m = await ensureMission(id);
   if (!m) throw new Error(t().common.missionNotFound);
@@ -334,6 +336,7 @@ export async function getMySubmissions(missionId?: string): Promise<SubmissionVi
 }
 
 export async function getMyRegistrations(): Promise<RegistrationGroups> {
+  if (currentSession()?.kind !== "contributor") return { active: [], saved: [], done: [] };
   await loadMissions(false);
   getState().submissions.forEach(resolveSubmission);
   const posts = missionPool().map(toPost);
