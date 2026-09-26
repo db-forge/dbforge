@@ -1,31 +1,30 @@
 "use client";
 
-import { ArrowRight, Check, Clock, FileQuestion, Loader2, RotateCcw, X } from "lucide-react";
+import { Check, CircleDashed, Clock, FileQuestion, Loader2, X } from "lucide-react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { EmptyState } from "@/components/EmptyState";
 import { MonAmount } from "@/components/MonAmount";
-import { StatusBadge } from "@/components/StatusBadge";
 import { AppShell } from "@/components/shell/AppShell";
 import { useToast } from "@/components/Toaster";
-import { TxHash } from "@/components/TxHash";
 import { LinkButton } from "@/components/ui/button";
-import { Card, MonoLabel, Skeleton } from "@/components/ui/card";
-import { getMissions, getSubmission } from "@/lib/frontend/api";
+import { MonoLabel, Skeleton } from "@/components/ui/card";
+import { getMission, getMissions, getSubmission, getWallet } from "@/lib/frontend/api";
 import { useApi } from "@/lib/frontend/hooks";
 import type { SubmissionView } from "@/lib/frontend/types";
-import { cn } from "@/lib/frontend/utils";
+import { cn, formatMon, shortAddr, txUrl } from "@/lib/frontend/utils";
 
-const STEPS = [
-  { label: "Yüklendi", hint: "Video alındı, hash hesaplandı" },
-  { label: "Süre", hint: "Minimum 10 saniye kontrolü" },
-  { label: "Benzersiz", hint: "Daha önce gönderilmemiş" },
-  { label: "AI kontrolü", hint: "Görev kriterlerine uygunluk" },
-];
-// ms after mount at which each of the first three steps completes
-const STEP_AT = [400, 1100, 1900];
+// ms after mount at which each of the first four steps completes; the last
+// step (AI) waits for the verification result.
+const STEP_AT = [300, 900, 1500, 2100];
 
 type StepState = "done" | "active" | "waiting" | "failed" | "review";
+
+/** Stable fake settlement time (0.4–1.3 s) derived from the tx hash. */
+function settleSec(hash: string) {
+  return (0.4 + (parseInt(hash.slice(2, 4) || "0", 16) % 10) / 10).toFixed(1);
+}
 
 export default function SubmissionPage() {
   const { id } = useParams<{ id: string }>();
@@ -34,8 +33,13 @@ export default function SubmissionPage() {
   const [elapsed, setElapsed] = useState(0);
   // Old, already-resolved submissions skip the animation.
   const [instant, setInstant] = useState<boolean | null>(null);
+  const [skip, setSkip] = useState(false);
+  const [meta, setMeta] = useState<{ sec: number; h: number } | null>(null);
   const toasted = useRef(false);
   const { data: missions } = useApi(() => getMissions());
+  const { data: wallet } = useApi(getWallet);
+  const missionId = sub?.missionId ?? "";
+  const { data: mission } = useApi(() => (missionId ? getMission(missionId) : Promise.resolve(null)), [missionId]);
 
   // Poll until verification resolves.
   useEffect(() => {
@@ -63,13 +67,14 @@ export default function SubmissionPage() {
     const t = setInterval(() => {
       const e = Date.now() - start;
       setElapsed(e);
-      if (e > 4000) clearInterval(t);
+      if (e > 3000) clearInterval(t);
     }, 100);
     return () => clearInterval(t);
   }, []);
 
-  const stepsDone = instant ? 3 : STEP_AT.filter((t) => elapsed >= t).length;
-  const showResult = !!sub?.result && (instant || stepsDone === 3);
+  const fast = instant || skip;
+  const stepsDone = fast ? STEP_AT.length : STEP_AT.filter((t) => elapsed >= t).length;
+  const showResult = !!sub?.result && stepsDone === STEP_AT.length;
 
   useEffect(() => {
     if (!showResult || !sub || toasted.current || instant) return;
@@ -82,8 +87,8 @@ export default function SubmissionPage() {
 
   if (sub === undefined) {
     return (
-      <AppShell title="Doğrulama">
-        <Skeleton className="aspect-video w-full rounded-2xl" />
+      <AppShell title="Doğrulama" immersive>
+        <Skeleton className="mt-4 aspect-video w-full rounded-2xl" />
         <Skeleton className="mt-4 h-48 w-full rounded-2xl" />
       </AppShell>
     );
@@ -101,138 +106,199 @@ export default function SubmissionPage() {
     );
   }
 
+  const last = STEP_AT.length;
   function stepState(i: number): StepState {
-    if (i < 3) return i < stepsDone ? "done" : i === stepsDone ? "active" : "waiting";
-    if (stepsDone < 3) return "waiting";
+    if (i < last) return i < stepsDone ? "done" : i === stepsDone ? "active" : "waiting";
+    if (stepsDone < last) return "waiting";
     if (!sub?.result) return "active";
     if (sub.result === "accepted") return "done";
     if (sub.result === "rejected") return "failed";
     return "review";
   }
 
+  const steps = [
+    "Yüklendi",
+    meta ? `Süre ${Math.round(meta.sec)} sn · ${meta.h}p` : "Süre kontrolü",
+    "Benzersiz (kopya değil)",
+    "Challenge geçerli",
+    "AI kriterleri kontrol ediyor",
+  ];
+
   const nextMission = missions?.find(
     (m) => m.id !== sub.missionId && m.status !== "completed" && m.myUploads < m.perUserLimit,
   );
+  const nextHref = nextMission ? `/mission/${nextMission.id}` : "/explore";
+  const score = sub.aiScore !== null ? `${Math.round(sub.aiScore * 100)}%` : "–";
+  const label = `Gönderim · Görev #${mission?.chainMissionId ?? "…"}`;
 
-  return (
-    <AppShell title="Doğrulama" backHref={`/mission/${sub.missionId}`}>
-      <div className="space-y-4">
-        <div className="flex gap-4 rounded-2xl border-[1.5px] border-ink bg-white p-3">
-          <video
-            src={sub.previewUrl}
-            autoPlay
-            muted
-            loop
-            playsInline
-            className="aspect-[3/4] w-28 shrink-0 rounded-xl border-[1.5px] border-ink bg-black object-cover sm:w-36"
-          />
-          <div className="flex min-w-0 flex-col justify-between py-1">
-            <div>
-              <MonoLabel>Gönderim</MonoLabel>
-              <p className="font-bold leading-snug">{sub.missionTitle}</p>
-              <p className="mt-1 truncate font-mono text-xs text-ink/60">{sub.fileName}</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <StatusBadge status={showResult ? sub.result! : "verifying"} />
-              {showResult && sub.aiScore !== null && (
-                <span className="font-mono text-xs text-ink/70">AI skoru {(sub.aiScore * 100).toFixed(0)}</span>
+  // ---------- result screens ----------
+  if (showResult) {
+    const accepted = sub.result === "accepted";
+    const rejected = sub.result === "rejected";
+    return (
+      <AppShell title="Doğrulama" backHref={`/mission/${sub.missionId}`} immersive>
+        <div className="flex min-h-[calc(100dvh-8rem)] animate-toast-in flex-col md:min-h-[600px]">
+          <div className="flex flex-1 flex-col items-center justify-center py-8 text-center">
+            <span
+              className={cn(
+                "grid size-24 animate-pop place-items-center rounded-full border-[1.5px] bg-white",
+                accepted ? "border-ink" : rejected ? "border-danger text-danger" : "border-warning text-warning",
               )}
-            </div>
+            >
+              {accepted ? (
+                <Check className="size-10 text-success" strokeWidth={2.5} />
+              ) : rejected ? (
+                <X className="size-10" strokeWidth={2.5} />
+              ) : (
+                <Clock className="size-10" strokeWidth={2.2} />
+              )}
+            </span>
+            <MonoLabel className="mt-5">
+              {accepted ? "Kabul" : rejected ? "Reddedildi" : "İnceleniyor"} · AI skoru {score}
+            </MonoLabel>
+
+            {accepted && (
+              <>
+                <MonAmount value={sub.rewardMon} sign size="xl" className="mt-2 text-6xl sm:text-7xl" />
+                <p className="mt-3 text-ink/75">
+                  <span className="font-mono">{shortAddr(sub.contributorAddress, 4, 4)}</span> adresine Monad
+                  üzerinden ödendi
+                </p>
+                <a
+                  href={txUrl(sub.txHash)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-4 inline-flex h-9 items-center rounded-xl border-[1.5px] border-ink bg-white px-3.5 font-mono text-xs hover:border-primary hover:text-primary"
+                >
+                  tx {shortAddr(sub.txHash, 6, 4)} · {settleSec(sub.txHash)} sn
+                </a>
+              </>
+            )}
+
+            {rejected && (
+              <>
+                <p className="mt-2 text-2xl font-bold">Bu video kabul edilmedi</p>
+                <p className="mt-2 max-w-sm rounded-xl border-[1.5px] border-danger/40 bg-red-50 px-4 py-3 text-sm text-danger">
+                  {sub.rejectReason}
+                </p>
+                <p className="mt-3 font-mono text-xs text-ink/55">Reddedilen videolar yükleme limitinden düşülmez.</p>
+              </>
+            )}
+
+            {!accepted && !rejected && (
+              <>
+                <p className="mt-2 text-2xl font-bold">Manuel incelemeye alındı</p>
+                <p className="mt-2 max-w-sm rounded-xl border-[1.5px] border-warning/50 bg-amber-50 px-4 py-3 text-sm text-ink/80">
+                  AI skoru kabul eşiğine yakın. Moderatör onaylarsa{" "}
+                  <b className="text-primary">{formatMon(sub.rewardMon)} MON</b> otomatik gönderilir.
+                </p>
+              </>
+            )}
+          </div>
+
+          <div className="space-y-3 pb-2">
+            {accepted && (
+              <div className="flex items-center justify-between rounded-2xl border-[1.5px] border-ink bg-white px-4 py-3">
+                <span>Bakiye</span>
+                {wallet ? <MonAmount value={wallet.balanceMon} size="sm" /> : <Skeleton className="h-5 w-20" />}
+              </div>
+            )}
+            {rejected ? (
+              <LinkButton href={`/mission/${sub.missionId}/capture`} size="lg" className="h-14 w-full font-bold">
+                Tekrar dene
+              </LinkButton>
+            ) : (
+              <LinkButton href={nextHref} size="lg" className="h-14 w-full font-bold">
+                Sonraki görev
+              </LinkButton>
+            )}
+            {accepted ? (
+              <a
+                href={txUrl(sub.txHash)}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex h-14 w-full items-center justify-center rounded-full border-[1.5px] border-ink bg-white font-bold hover:bg-ice"
+              >
+                Explorer&apos;da gör
+              </a>
+            ) : (
+              <LinkButton
+                href={rejected ? nextHref : "/registered"}
+                variant="outline"
+                size="lg"
+                className="h-14 w-full font-bold"
+              >
+                {rejected ? "Sonraki görev" : "Kayıtlılarım"}
+              </LinkButton>
+            )}
           </div>
         </div>
+      </AppShell>
+    );
+  }
 
-        {/* Checklist */}
-        <Card className="p-5">
-          <ol className="space-y-4">
-            {STEPS.map((step, i) => {
-              const s = stepState(i);
-              return (
-                <li key={step.label} className="flex items-center gap-3">
-                  <span
-                    className={cn(
-                      "grid size-8 shrink-0 place-items-center rounded-full border-[1.5px] transition-colors",
-                      s === "done" && "animate-pop border-success bg-success text-white",
-                      s === "active" && "border-primary text-primary",
-                      s === "waiting" && "border-sky text-ink/30",
-                      s === "failed" && "animate-pop border-danger bg-danger text-white",
-                      s === "review" && "animate-pop border-warning bg-warning text-white",
-                    )}
-                  >
-                    {s === "done" ? (
-                      <Check className="size-4" />
-                    ) : s === "active" ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : s === "failed" ? (
-                      <X className="size-4" />
-                    ) : s === "review" ? (
-                      <Clock className="size-4" />
-                    ) : (
-                      <span className="font-mono text-xs">{i + 1}</span>
-                    )}
-                  </span>
-                  <div>
-                    <p className={cn("font-bold", s === "waiting" && "text-ink/40")}>{step.label}</p>
-                    <p className="text-xs text-ink/60">{step.hint}</p>
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
-        </Card>
+  // ---------- verifying ----------
+  return (
+    <AppShell title="Doğrulama" backHref={`/mission/${sub.missionId}`} immersive>
+      <div className="pt-2 md:pt-0">
+        <MonoLabel>{label}</MonoLabel>
+        <video
+          src={sub.previewUrl}
+          autoPlay
+          muted
+          loop
+          playsInline
+          onLoadedMetadata={(e) =>
+            setMeta({ sec: e.currentTarget.duration, h: e.currentTarget.videoHeight })
+          }
+          className="mt-3 aspect-[16/10] w-full rounded-2xl bg-ink object-cover"
+        />
 
-        {/* Result */}
-        {showResult && sub.result === "accepted" && (
-          <Card className="animate-toast-in border-success p-6 text-center">
-            <StatusBadge status="accepted" label="Kabul edildi" />
-            <div className="mt-4 animate-pop">
-              <MonAmount value={sub.rewardMon} sign size="xl" className="text-6xl" />
-            </div>
-            <p className="mt-2 text-sm text-ink/70">Ödeme Monad Testnet üzerinden cüzdanına gönderildi.</p>
-            <div className="mt-5 rounded-xl border border-sky bg-ice/60 p-3 text-left">
-              <MonoLabel>Tx hash</MonoLabel>
-              <TxHash hash={sub.txHash} full className="mt-1 flex" />
-            </div>
-            <div className="mt-5 grid gap-2 sm:grid-cols-2">
-              <LinkButton href={`/mission/${sub.missionId}/capture`} variant="outline" size="lg">
-                Bir video daha
-              </LinkButton>
-              <LinkButton href={nextMission ? `/mission/${nextMission.id}` : "/explore"} size="lg">
-                Sonraki görev <ArrowRight className="size-4" />
-              </LinkButton>
-            </div>
-          </Card>
+        <h2 className="mt-6 text-2xl font-bold tracking-tight">Videon kontrol ediliyor…</h2>
+        <ol className="mt-4 divide-y divide-sky rounded-2xl border-[1.5px] border-ink bg-white">
+          {steps.map((text, i) => {
+            const st = stepState(i);
+            return (
+              <li
+                key={i}
+                className={cn(
+                  "flex items-center justify-between gap-3 px-4 py-3.5",
+                  st === "active" && "font-bold text-primary",
+                  st === "waiting" && "text-ink/40",
+                )}
+              >
+                <span>{text}</span>
+                {st === "done" ? (
+                  <Check className="size-5 animate-pop" strokeWidth={2.5} />
+                ) : st === "active" ? (
+                  <Loader2 className="size-5 animate-spin" />
+                ) : (
+                  <CircleDashed className="size-5" />
+                )}
+              </li>
+            );
+          })}
+        </ol>
+        <p className="mt-4 text-sm text-ink/65">
+          Genelde 10 saniyeden kısa sürer. Kabul edilirse {formatMon(sub.rewardMon)} MON cüzdanına otomatik
+          gönderilir.
+        </p>
+
+        {!skip && (
+          <div className="mt-10 text-center">
+            <button
+              onClick={() => setSkip(true)}
+              className="font-mono text-xs text-ink/60 underline underline-offset-4 hover:text-primary"
+            >
+              [ demo: sonuca atla → ]
+            </button>
+          </div>
         )}
-
-        {showResult && sub.result === "rejected" && (
-          <Card className="animate-toast-in border-danger p-6">
-            <StatusBadge status="rejected" label="Reddedildi" />
-            <p className="mt-3 text-lg font-bold">Bu video kabul edilmedi</p>
-            <p className="mt-1 text-sm text-ink/75">{sub.rejectReason}</p>
-            <p className="mt-3 font-mono text-xs text-ink/55">Reddedilen videolar yükleme limitinden düşülmez.</p>
-            <LinkButton href={`/mission/${sub.missionId}/capture`} size="lg" className="mt-5 w-full">
-              <RotateCcw className="size-4" /> Tekrar dene
-            </LinkButton>
-          </Card>
-        )}
-
-        {showResult && sub.result === "review" && (
-          <Card className="animate-toast-in border-warning bg-amber-50/60 p-6">
-            <StatusBadge status="review" />
-            <p className="mt-3 text-lg font-bold">Manuel incelemeye alındı</p>
-            <p className="mt-1 text-sm text-ink/75">
-              AI skoru kabul eşiğine yakın. Bir moderatör videonu inceleyecek; onaylanırsa{" "}
-              <b className="text-primary">{sub.rewardMon.toFixed(2)} MON</b> otomatik gönderilir.
-            </p>
-            <div className="mt-5 grid gap-2 sm:grid-cols-2">
-              <LinkButton href="/registered" variant="outline" size="lg">
-                Kayıtlılarım
-              </LinkButton>
-              <LinkButton href={nextMission ? `/mission/${nextMission.id}` : "/explore"} size="lg">
-                Sonraki görev <ArrowRight className="size-4" />
-              </LinkButton>
-            </div>
-          </Card>
-        )}
+        <p className="mt-6 text-center">
+          <Link href="/registered" className="text-sm text-ink/60 hover:text-primary">
+            Arka planda devam etsin → Kayıtlılarım
+          </Link>
+        </p>
       </div>
     </AppShell>
   );
