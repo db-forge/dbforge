@@ -167,7 +167,7 @@ type Patch = Partial<Pick<MockSubmission, "result" | "aiScore" | "txHash" | "rej
  * deterministic checks → AI (vision) check → on-chain settlement.
  * Each step reports into `update` so the UI (polling the local record) follows along.
  */
-export async function runPipeline(id: string, update: (patch: Patch) => void) {
+export async function runPipeline(id: string, contributorAddress: string, update: (patch: Patch) => void) {
   try {
     const verify = await apiFetch<VerifyResponseDto>(`/api/verify/${id}`, { method: "POST" });
     if (!verify.technicalValid) {
@@ -199,6 +199,19 @@ export async function runPipeline(id: string, update: (patch: Patch) => void) {
     try {
       const paid = await apiFetch<SettlementResponseDto>(`/api/settlement/${id}`, { method: "POST" });
       update({ result: "accepted", txHash: paid.settlement.txHash });
+      try {
+        const withdrawal = await apiFetch<{ txHash?: string; status: "withdrawn" | "nothing_to_withdraw" }>(
+          `/api/contributors/${encodeURIComponent(contributorAddress)}/withdraw`,
+          { method: "POST" },
+        );
+        if (withdrawal.status === "withdrawn" && withdrawal.txHash) {
+          // This transaction actually moves the credited MON into the wallet.
+          update({ txHash: withdrawal.txHash });
+        }
+      } catch (error) {
+        // The reward remains safely credited in the Vault for a later retry.
+        update({ note: t().errors.payoutQueued((error as Error).message) });
+      }
     } catch (e) {
       // Accepted, but the payout could not be sent yet (e.g. contract not deployed).
       update({ result: "accepted", txHash: "", note: t().errors.payoutQueued((e as Error).message) });

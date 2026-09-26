@@ -264,7 +264,7 @@ export async function uploadSubmission(
       if (!s.registered.includes(missionId)) s.registered.push(missionId);
       s.submissions.unshift(sub);
     });
-    void live.runPipeline(sub.id, (patch) =>
+    void live.runPipeline(sub.id, contributorAddress, (patch) =>
       mutate((s) => {
         const target = s.submissions.find((x) => x.id === sub.id);
         if (target) Object.assign(target, patch);
