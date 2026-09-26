@@ -1,0 +1,30 @@
+{
+  "network": "monad-testnet",
+  "chainId": 10143,
+  "rpcUrl": "https://testnet-rpc.monad.xyz",
+  "explorer": "https://testnet.monadvision.com",
+  "deployedAt": "2026-09-26",
+  "sourceCommit": "89308fa",
+  "blocks": { "first": 65855492, "last": 65855524 },
+  "contracts": {
+    "MissionVault": "0xcc10787653F33fefA68a455bEe3daB964C22e0b3",
+    "MissionFactory": "0xC462FbC4ae4D522C19714c9DeE4D6f4Ff03c4c73",
+    "ProvenanceRegistry": "0x4e9D5E72c00e30be7A0431B6b69BF296362E99Ec"
+  },
+  "roles": {
+    "admin": "0x9cffc21609F066f863E91e0290E9E31Fd45D4b28",
+    "verifier": "0xE83b50CA5b1b0D281789a1FD13976C449D22558B",
+    "guardian": "0xf421eB2E725781cd1e69FeA9772e174f9aa0ca46"
+  },
+  "verified": "sourcify exact_match (MonadVision) for all three contracts",
+  "transactions": {
+    "createMissionVault": "0x258cd8cf643ffab580466164414982e7754ea2127fd88a7f8fb187b7d88b07a3",
+    "createMissionFactory": "0xf1c96dbdac27956628a2a5ed9c6f3609ddf50d3b825c6fd66897cd4021bbeae8",
+    "setFactory": "0xe238693d0e3d60cee6e7c9b7e4a536df6de63e0eb23b1aa778dc67e4b4994047",
+    "createProvenanceRegistry": "0x01686267880374ed8fbb0dc6f1dc02b0502debd163bd99b57783e334c29ed4f2",
+    "vaultGrantVerifier": "0x15ac3d29f551e4af0db5d1f4e97114fc827427d99a45dd5274a4511db9d19682",
+    "registryGrantVerifier": "0xb44f2fd927aaf327730132660d1954d0ade73ea65bbb6777eb13fb4e0d078e07",
+    "vaultGrantGuardianPauser": "0x3b81ef1f7a3c1f13f0a45b48a76ec96e9dd2ebed8d39f3861821b7aeeaf9da51",
+    "registryGrantGuardianPauser": "0x32561391e5e15e73f77384940149aaaf21e0d0269c53bef3af5c0d356875e13f"
+  }
+}
