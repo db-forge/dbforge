@@ -9,7 +9,7 @@ import {
   subscribe,
   type MockSubmission,
 } from "@/lib/mock/store";
-import type { MockMission } from "@/lib/mock/missions";
+import { COMPANIES, type MockMission } from "@/lib/mock/missions";
 import type {
   BuyerMissionView,
   BuyerSubmissionRow,
@@ -28,6 +28,9 @@ const LATENCY = 250;
 const VERIFY_MS = 3000;
 
 export const onDataChange = subscribe;
+
+/** The company the demo buyer panel acts as. */
+export const CURRENT_BUYER: Company = COMPANIES.nova;
 
 // ---------- helpers ----------
 
@@ -269,11 +272,9 @@ export async function createMission(data: CreateMissionInput): Promise<MissionPo
     targetCount: data.targetCount,
     acceptedCount: 0,
     status: "active",
-    company: { name: "Forge Demo Co.", handle: "forgedemo", initials: "FD" },
+    company: CURRENT_BUYER,
     category: data.category,
-    coverUrl: data.coverUrl?.startsWith("blob:")
-      ? "/missions/bottle-drop.jpg"
-      : (data.coverUrl ?? "/missions/bottle-drop.jpg"),
+    coverUrl: data.coverUrl || "/missions/bottle-drop.jpg",
     sampleVideoUrl: "/demo/bottle-drop.mp4",
     createdAt: new Date().toISOString(),
     registeredCount: 0,
