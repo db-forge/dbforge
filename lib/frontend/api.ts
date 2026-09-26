@@ -27,6 +27,7 @@ import type {
   VerifyResult,
   WalletSummary,
 } from "./types";
+import { currentSession } from "./auth";
 import { IS_LIVE } from "./config";
 import { currentLocale, t } from "./i18n";
 import * as live from "./live";
@@ -37,8 +38,27 @@ const VERIFY_MS = 3000;
 
 export const onDataChange = subscribe;
 
-/** The company the demo buyer panel acts as. */
-export const CURRENT_BUYER: Company = COMPANIES.nova;
+/** Feed identity for a company name: "Nova Robotics" → @novarobotics, "NR". */
+export function companyFromName(name: string): Company {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  const handle = name.toLocaleLowerCase("en-US").replace(/[^a-z0-9]/g, "") || "company";
+  const initials = (words.length > 1 ? words[0][0] + words[1][0] : name.trim().slice(0, 2)).toLocaleUpperCase("en-US");
+  return { name: name.trim(), handle, initials };
+}
+
+/**
+ * The company the buyer panel acts as: the signed-in company session.
+ * Falls back to the demo company outside a company session (e.g. previews).
+ */
+export function currentBuyer(): Company {
+  const s = currentSession();
+  return s?.kind === "company" ? companyFromName(s.companyName) : COMPANIES.nova;
+}
+
+/** Mock: a buyer only sees its own missions. Live: the API derives the buyer from the session. */
+function ownedByBuyer(m: MockMission) {
+  return IS_LIVE || m.company.handle === currentBuyer().handle;
+}
 
 // ---------- helpers ----------
 
@@ -372,7 +392,7 @@ export async function createMission(data: CreateMissionInput): Promise<MissionPo
     targetCount: data.targetCount,
     acceptedCount: 0,
     status: "active",
-    company: CURRENT_BUYER,
+    company: currentBuyer(),
     category: data.category,
     coverUrl: data.coverUrl || "/missions/bottle-drop.jpg",
     sampleVideoUrl: "/demo/bottle-drop.mp4",
@@ -390,12 +410,12 @@ export async function createMission(data: CreateMissionInput): Promise<MissionPo
 
 export async function getBuyerMissions(): Promise<MissionPost[]> {
   await loadMissions();
-  return missionPool().map(toPost);
+  return missionPool().filter(ownedByBuyer).map(toPost);
 }
 
 export async function getBuyerMission(id: string): Promise<BuyerMissionView | null> {
   const m = IS_LIVE ? await ensureMission(id) : (await sleep(LATENCY), findMission(id));
-  if (!m) return null;
+  if (!m || !ownedByBuyer(m)) return null;
   getState().submissions.forEach(resolveSubmission);
   const post = toPost(m);
   const complete = post.acceptedCount >= post.targetCount;

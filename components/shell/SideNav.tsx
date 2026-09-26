@@ -4,9 +4,9 @@ import { Upload } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { getMyRegistrations } from "@/lib/frontend/api";
-import { useApi, useIsClient, useWalletStatus } from "@/lib/frontend/hooks";
-import { cn, shortAddr } from "@/lib/frontend/utils";
-import { Avatar } from "../Avatar";
+import { useApi } from "@/lib/frontend/hooks";
+import { cn } from "@/lib/frontend/utils";
+import { SessionMenu } from "../auth/SessionMenu";
 import { useT } from "../I18nProvider";
 import { LanguageSwitch } from "../LanguageSwitch";
 import { buttonClass } from "../ui/button";
@@ -23,8 +23,6 @@ export function useUploadHref() {
 export function SideNav() {
   const pathname = usePathname();
   const uploadHref = useUploadHref();
-  const { address, isConnected } = useWalletStatus();
-  const mounted = useIsClient();
   const t = useT();
 
   return (
@@ -71,15 +69,7 @@ export function SideNav() {
       <div className="flex flex-col items-center gap-3 lg:items-stretch">
         <LanguageSwitch variant="toggle" className="lg:hidden" />
         <LanguageSwitch className="hidden self-start lg:ml-2 lg:inline-flex" />
-        <div className="flex items-center gap-3 rounded-full p-1.5 lg:px-2">
-        <Avatar initials="SN" className="text-xs" />
-        <div className="hidden min-w-0 lg:block">
-          <p className="text-sm font-bold leading-tight">{t.nav.you}</p>
-          <p className="truncate font-mono text-xs text-muted">
-            {mounted && isConnected ? shortAddr(address) : t.nav.notConnected}
-          </p>
-        </div>
-        </div>
+        <SessionMenu variant="nav" />
       </div>
     </aside>
   );

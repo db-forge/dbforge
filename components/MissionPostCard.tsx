@@ -6,6 +6,7 @@ import { useState } from "react";
 import { registerMission, toggleSave } from "@/lib/frontend/api";
 import type { MissionPost } from "@/lib/frontend/types";
 import { cn, timeAgo } from "@/lib/frontend/utils";
+import { useRequireContributor } from "./auth/RequireSession";
 import { CompanyAvatar } from "./CompanyAvatar";
 import { CoverImage } from "./CoverImage";
 import { useT } from "./I18nProvider";
@@ -27,6 +28,7 @@ export function MissionPostCard({
 }) {
   const toast = useToast();
   const t = useT();
+  const requireContributor = useRequireContributor();
   const [busy, setBusy] = useState(false);
   const remaining = Math.max(0, mission.targetCount - mission.acceptedCount);
   const completed = mission.status === "completed";
@@ -34,6 +36,7 @@ export function MissionPostCard({
 
   async function onRegister() {
     if (preview || mission.isRegistered || busy) return;
+    if (!requireContributor()) return;
     setBusy(true);
     try {
       await registerMission(mission.id);

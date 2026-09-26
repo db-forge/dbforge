@@ -9,7 +9,7 @@ import { MonAmount } from "@/components/MonAmount";
 import { useToast } from "@/components/Toaster";
 import { Button } from "@/components/ui/button";
 import { getMission, uploadSubmission } from "@/lib/frontend/api";
-import { useApi, useIsClient, useWalletStatus } from "@/lib/frontend/hooks";
+import { useApi, useIsClient, useSession } from "@/lib/frontend/hooks";
 import { cn, randomHex } from "@/lib/frontend/utils";
 import { DEMO_VIDEOS } from "@/lib/mock/missions";
 import { DEMO_VIDEO_LABELS_EN } from "@/lib/mock/missions.en";
@@ -57,7 +57,9 @@ export default function CapturePage() {
   const locale = useLocale();
   const { data: mission } = useApi(() => getMission(id), [id]);
   const challenge = useChallenge();
-  const { address } = useWalletStatus();
+  // Payouts go to the signed-in contributor's wallet (the layout guarantees a contributor session).
+  const { session } = useSession();
+  const address = session?.kind === "contributor" ? session.walletAddress : undefined;
 
   const [phase, setPhase] = useState<Phase>("init");
   const [facing, setFacing] = useState<"environment" | "user">("environment");
