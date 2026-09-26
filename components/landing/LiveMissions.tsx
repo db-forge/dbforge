@@ -16,16 +16,16 @@ export function LiveMissions() {
   const live = data?.filter((m) => m.status === "active").slice(0, 3);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {loading && !live
-        ? [0, 1, 2].map((i) => <Skeleton key={i} className="h-28 rounded-2xl" />)
+        ? [0, 1, 2].map((i) => <Skeleton key={i} className="h-28 rounded-lg" />)
         : live?.map((m) => (
             <Link
               key={m.id}
               href={`/mission/${m.id}`}
-              className="group flex items-center gap-4 rounded-2xl border-[1.5px] border-border bg-surface p-4 transition-transform hover:-translate-y-0.5 hover:border-primary"
+              className="group flex items-center gap-4 rounded-lg border-[1.5px] border-border bg-surface p-4 transition-colors duration-200 hover:border-primary"
             >
-              <CoverImage src={m.coverUrl} className="size-18 shrink-0 rounded-xl border-[1.5px] border-border" />
+              <CoverImage src={m.coverUrl} className="size-18 shrink-0 rounded-md border-[1.5px] border-border" />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-bold text-text group-hover:underline">{m.title}</p>
                 <ProgressBar value={m.acceptedCount} max={m.targetCount} className="mt-2" />
@@ -52,12 +52,12 @@ export function LandingStats() {
     { value: t.landing.stats.payoutValue, label: t.landing.stats.payoutTime, color: "text-link" },
   ];
   return (
-    <dl className="mx-auto mt-10 grid max-w-3xl grid-cols-3 gap-2 rounded-2xl bg-bg px-4 py-4 text-center sm:rounded-full sm:px-10">
+    <dl className="mt-16 grid grid-cols-3 divide-x-[1.5px] divide-border border-t-[1.5px] border-border pt-6">
       {stats.map((s) => (
-        <div key={s.label}>
+        <div key={s.label} className="px-3 first:pl-0 sm:px-6">
           <dt className="sr-only">{s.label}</dt>
-          <dd className={`text-xl font-bold tracking-tight tabular-nums sm:text-2xl ${s.color}`}>{s.value}</dd>
-          <p className="text-xs text-muted sm:text-sm">{s.label}</p>
+          <dd className={`text-xl font-bold tracking-tight tabular-nums sm:text-3xl ${s.color}`}>{s.value}</dd>
+          <p className="mt-1 text-xs text-muted sm:text-sm">{s.label}</p>
         </div>
       ))}
     </dl>

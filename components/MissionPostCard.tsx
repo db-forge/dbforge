@@ -55,7 +55,7 @@ export function MissionPostCard({
     <article
       className={cn(
         "flex gap-3 px-4 py-4",
-        preview ? "rounded-2xl border-[1.5px] border-border bg-surface" : "border-b-[1.5px] border-border bg-bg",
+        preview ? "rounded-lg border-[1.5px] border-border bg-surface" : "border-b-[1.5px] border-border bg-bg",
         className,
       )}
     >
@@ -95,19 +95,19 @@ export function MissionPostCard({
 
         {/* Body */}
         <Link href={detailHref} className="group mt-2 block">
-          <h3 className="text-lg font-bold leading-snug text-text">{mission.title}</h3>
-          <div className="mt-3 overflow-hidden rounded-2xl border-[1.5px] border-border">
+          <h3 className="text-lg leading-snug font-bold text-text underline-offset-2 group-hover:underline">{mission.title}</h3>
+          <div className="mt-3 overflow-hidden rounded-md border-[1.5px] border-border">
             <CoverImage
               src={mission.coverUrl}
               alt={mission.title}
-              className="aspect-[16/9] w-full transition-transform duration-300 group-hover:scale-[1.02]"
+              className="aspect-[16/9] w-full transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.015]"
             />
           </div>
         </Link>
 
         {/* Personal progress — only after registering */}
         {mission.isRegistered && !completed && (
-          <div className="mt-3 animate-toast-in rounded-xl border-[1.5px] border-border bg-surface px-3.5 py-3">
+          <div className="mt-3 animate-toast-in rounded-md border-[1.5px] border-border bg-surface px-3.5 py-3">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-4">
               <div className="min-w-0 flex-1">
                 <div className="mb-1.5 flex items-center justify-between text-xs">
@@ -141,7 +141,7 @@ export function MissionPostCard({
           <button
             onClick={onSave}
             aria-label={mission.isSaved ? t.post.unsave : t.common.save}
-            className="-mr-2 grid size-9 place-items-center rounded-full hover:bg-border/40"
+            className="-mr-2 grid size-9 place-items-center rounded-full transition-colors hover:bg-border/40 active:bg-border/70"
           >
             <Bookmark className={cn("size-5", mission.isSaved ? "fill-primary text-primary" : "text-muted")} />
           </button>
@@ -164,7 +164,7 @@ export function MissionPostCardSkeleton() {
           <Skeleton className="h-8 w-20 rounded-full" />
         </div>
         <Skeleton className="mt-4 h-5 w-2/3" />
-        <Skeleton className="mt-3 aspect-[16/9] w-full rounded-2xl" />
+        <Skeleton className="mt-3 aspect-[16/9] w-full rounded-md" />
         <Skeleton className="mt-4 h-6 w-32" />
       </div>
     </div>
