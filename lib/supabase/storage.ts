@@ -15,6 +15,15 @@ export class StorageUploadError extends Error {
   }
 }
 
+// Generic storage read/metadata failure (existence checks, signed URLs) —
+// distinct from StorageUploadError, which is specific to the M1 upload path.
+export class StorageError extends Error {
+  constructor(message: string, readonly cause?: unknown) {
+    super(message);
+    this.name = "StorageError";
+  }
+}
+
 /**
  * Collision-safe, non-user-controlled storage path:
  *   missions/{missionId}/submissions/{submissionId}/media.{extension}
@@ -61,4 +70,49 @@ export async function deleteSubmissionMedia(path: string): Promise<void> {
   if (error) {
     console.error(`Failed to clean up orphaned storage object ${path}:`, error);
   }
+}
+
+/**
+ * Verifies the object actually exists in storage — a media_path recorded
+ * in the DB is not proof the object is really there (upload could have
+ * been interrupted, or the object deleted out-of-band). Uses `list` with a
+ * name filter (cheap metadata call), not a download.
+ */
+export async function submissionMediaObjectExists(path: string): Promise<boolean> {
+  const supabase = getSupabaseServiceClient();
+
+  const lastSlash = path.lastIndexOf("/");
+  const dir = lastSlash === -1 ? "" : path.slice(0, lastSlash);
+  const filename = lastSlash === -1 ? path : path.slice(lastSlash + 1);
+
+  const { data, error } = await supabase.storage
+    .from(SUBMISSIONS_BUCKET)
+    .list(dir, { search: filename, limit: 1 });
+
+  if (error) {
+    throw new StorageError(`Failed to check existence of storage object ${path}`, error);
+  }
+
+  return (data ?? []).some((entry) => entry.name === filename);
+}
+
+/**
+ * Short-lived signed URL for private media — the only sanctioned way to
+ * read an object out of the bucket without the service role key.
+ */
+export async function createSignedSubmissionMediaUrl(
+  path: string,
+  expiresInSeconds: number,
+): Promise<string> {
+  const supabase = getSupabaseServiceClient();
+
+  const { data, error } = await supabase.storage
+    .from(SUBMISSIONS_BUCKET)
+    .createSignedUrl(path, expiresInSeconds);
+
+  if (error || !data?.signedUrl) {
+    throw new StorageError(`Failed to create signed URL for ${path}`, error);
+  }
+
+  return data.signedUrl;
 }

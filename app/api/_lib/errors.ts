@@ -4,7 +4,13 @@
 
 import { NextResponse } from "next/server";
 import { SupabaseConfigError } from "@/lib/supabase/client";
-import { ConflictError, DuplicateSubmissionError, NotFoundError } from "@/lib/supabase/errors";
+import { StorageError } from "@/lib/supabase/storage";
+import {
+  ConflictError,
+  DuplicateSubmissionError,
+  NotFoundError,
+  SubmissionFinalizedError,
+} from "@/lib/supabase/errors";
 
 export type ApiErrorCode =
   | "VALIDATION_ERROR"
@@ -21,7 +27,13 @@ export type ApiErrorCode =
   | "EMPTY_FILE"
   | "DUPLICATE_SUBMISSION"
   | "STORAGE_UPLOAD_FAILED"
-  | "DATABASE_ERROR";
+  | "DATABASE_ERROR"
+  // M2 verification pipeline (POST /api/verify/[submissionId], GET /api/submissions/[id]/media)
+  | "SUBMISSION_NOT_FOUND"
+  | "SUBMISSION_FINALIZED"
+  | "MEDIA_NOT_FOUND"
+  | "VERIFICATION_FAILED"
+  | "STORAGE_ERROR";
 
 export class ApiError extends Error {
   readonly status: number;
@@ -83,6 +95,26 @@ export class ApiError extends Error {
   static databaseError(message: string): ApiError {
     return new ApiError(500, "DATABASE_ERROR", message);
   }
+
+  static submissionNotFound(message: string): ApiError {
+    return new ApiError(404, "SUBMISSION_NOT_FOUND", message);
+  }
+
+  static submissionFinalized(message: string): ApiError {
+    return new ApiError(409, "SUBMISSION_FINALIZED", message);
+  }
+
+  static mediaNotFound(message: string): ApiError {
+    return new ApiError(404, "MEDIA_NOT_FOUND", message);
+  }
+
+  static verificationFailed(message: string): ApiError {
+    return new ApiError(500, "VERIFICATION_FAILED", message);
+  }
+
+  static storageError(message: string): ApiError {
+    return new ApiError(502, "STORAGE_ERROR", message);
+  }
 }
 
 export function apiErrorResponse(error: ApiError): NextResponse {
@@ -125,6 +157,17 @@ export function withApiErrorHandling(
 
     if (error instanceof DuplicateSubmissionError) {
       return apiErrorResponse(new ApiError(409, "DUPLICATE_SUBMISSION", error.message));
+    }
+
+    if (error instanceof SubmissionFinalizedError) {
+      return apiErrorResponse(new ApiError(409, "SUBMISSION_FINALIZED", error.message));
+    }
+
+    if (error instanceof StorageError) {
+      console.error("Storage error:", error.cause ?? error);
+      return apiErrorResponse(
+        new ApiError(502, "STORAGE_ERROR", "A storage error occurred processing this request."),
+      );
     }
 
     console.error("Unhandled API error:", error);

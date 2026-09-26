@@ -57,7 +57,15 @@ export interface VerificationResultRow {
   id: string;
   submission_id: string;
   technical_valid: boolean;
+  // M2 deterministic pipeline fields — see lib/verification/.
+  technical_score: number;
+  checks: unknown;
+  started_at: string;
+  completed_at: string;
+  verification_version: string;
+  failure_code: string | null;
   duplicate_detected: boolean;
+  // M3 fields — untouched by M2, populated by AI verification later.
   ai_valid: boolean | null;
   ai_confidence: number | null;
   ai_reason: string | null;

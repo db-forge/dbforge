@@ -5,6 +5,7 @@
 // precision loss) are kept as strings in the API response too.
 
 import type { MissionRow, SubmissionRow } from "@/lib/supabase/types";
+import type { CheckResult, FailureCode, VerificationOutcome } from "@/lib/verification/types";
 
 export interface MissionDto {
   id: string;
@@ -47,6 +48,43 @@ export interface UploadedSubmissionDto {
   sizeBytes: number;
   status: SubmissionRow["status"];
   createdAt: string;
+}
+
+// Response shape for POST /api/verify/[submissionId]. Flat, not wrapped in
+// a `{ submission: ... }` envelope, per the M2 spec's response contract.
+export interface VerifyResponseDto {
+  submissionId: string;
+  status: SubmissionRow["status"];
+  technicalValid: boolean;
+  technicalScore: number;
+  readyForAi: boolean;
+  verificationVersion: string;
+  checks: CheckResult[];
+  failureCode?: FailureCode;
+}
+
+export function toVerifyResponseDto(
+  submission: SubmissionRow,
+  outcome: VerificationOutcome,
+): VerifyResponseDto {
+  return {
+    submissionId: submission.id,
+    status: submission.status,
+    technicalValid: outcome.technicalValid,
+    technicalScore: outcome.technicalScore,
+    readyForAi: outcome.readyForAi,
+    verificationVersion: outcome.verificationVersion,
+    checks: outcome.checks,
+    ...(outcome.failureCode ? { failureCode: outcome.failureCode } : {}),
+  };
+}
+
+// Response shape for GET /api/submissions/[id]/media.
+export interface SignedMediaDto {
+  url: string;
+  expiresIn: number;
+  mediaType: string | null;
+  sizeBytes: number | null;
 }
 
 export function toMissionDto(row: MissionRow): MissionDto {

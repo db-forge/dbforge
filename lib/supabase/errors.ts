@@ -23,3 +23,10 @@ export class DuplicateSubmissionError extends Error {
     this.name = "DuplicateSubmissionError";
   }
 }
+
+export class SubmissionFinalizedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SubmissionFinalizedError";
+  }
+}

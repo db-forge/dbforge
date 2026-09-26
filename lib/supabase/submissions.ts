@@ -148,3 +148,79 @@ export async function createUploadedSubmission(
 
   return data as SubmissionRow;
 }
+
+/**
+ * Other submissions sharing the same (mission_id, media_hash), excluding
+ * this one — used by the M2 fraud checks. Only meaningful when mediaHash
+ * is non-null; callers should skip this query otherwise.
+ */
+export async function findOtherSubmissionsWithSameHash(
+  missionId: string,
+  mediaHash: string,
+  excludeSubmissionId: string,
+): Promise<SubmissionRow[]> {
+  const supabase = getSupabaseServiceClient();
+
+  const { data, error } = await supabase
+    .from("submissions")
+    .select("*")
+    .eq("mission_id", missionId)
+    .eq("media_hash", mediaHash)
+    .neq("id", excludeSubmissionId);
+
+  if (error) {
+    throw new Error(`Failed to check for duplicate submissions: ${error.message}`);
+  }
+
+  return (data ?? []) as SubmissionRow[];
+}
+
+/**
+ * Conditional transition uploaded -> verifying. Only succeeds (returns the
+ * updated row) if the submission was still "uploaded" at the moment of the
+ * update — this closes the race between two concurrent verify requests: at
+ * most one of them performs the transition, the other gets null back and
+ * should treat it as an already-verifying retry.
+ */
+export async function markSubmissionVerifying(id: string): Promise<SubmissionRow | null> {
+  const supabase = getSupabaseServiceClient();
+
+  const { data, error } = await supabase
+    .from("submissions")
+    .update({ status: "verifying" })
+    .eq("id", id)
+    .eq("status", "uploaded")
+    .select("*")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to transition submission ${id} to verifying: ${error.message}`);
+  }
+
+  return (data as SubmissionRow | null) ?? null;
+}
+
+/**
+ * Conditional transition verifying -> rejected, used when the deterministic
+ * pipeline hard-fails. Only succeeds if the submission was still
+ * "verifying" — a null return means something else already moved it (e.g.
+ * a concurrent retry), which the caller treats as idempotent (fetch the
+ * current row instead of erroring).
+ */
+export async function markSubmissionRejected(id: string): Promise<SubmissionRow | null> {
+  const supabase = getSupabaseServiceClient();
+
+  const { data, error } = await supabase
+    .from("submissions")
+    .update({ status: "rejected" })
+    .eq("id", id)
+    .eq("status", "verifying")
+    .select("*")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to transition submission ${id} to rejected: ${error.message}`);
+  }
+
+  return (data as SubmissionRow | null) ?? null;
+}
