@@ -12,9 +12,13 @@ export interface SettlementLogEvent {
     | "tx.hole_rebroadcast"
     | "tx.hole_filled"
     | "withdraw.ok"
-    | "withdraw.error";
+    | "withdraw.error"
+    | "anchor.ok"
+    | "anchor.error"
+    | "anchor.already_anchored";
   chainMissionId?: string;
   submissionHash?: string;
+  merkleRoot?: string;
   contributor?: string;
   txHash?: string;
   nonce?: number;

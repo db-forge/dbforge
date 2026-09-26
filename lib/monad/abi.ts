@@ -116,6 +116,76 @@ export const missionVaultAbi = [
   { type: "error", name: "ReentrancyGuardReentrantCall", inputs: [] },
 ] as const;
 
+/** ProvenanceRegistry subset for `anchorDataset` (ARCHITECTURE.md v2 §5). Checked against the artifact like the Vault's. */
+export const provenanceRegistryAbi = [
+  {
+    type: "function",
+    name: "anchorDataset",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "missionId", type: "uint256" },
+      { name: "merkleRoot", type: "bytes32" },
+      { name: "sampleCount", type: "uint256" },
+      { name: "metadataHash", type: "bytes32" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "getDataset",
+    stateMutability: "view",
+    inputs: [{ name: "missionId", type: "uint256" }],
+    outputs: [
+      {
+        name: "",
+        type: "tuple",
+        internalType: "struct IProvenanceRegistry.Dataset",
+        components: [
+          { name: "merkleRoot", type: "bytes32" },
+          { name: "metadataHash", type: "bytes32" },
+          { name: "sampleCount", type: "uint256" },
+          { name: "anchoredAt", type: "uint64" },
+          { name: "finalized", type: "bool" },
+        ],
+      },
+    ],
+  },
+  { type: "function", name: "paused", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "bool" }] },
+  {
+    type: "event",
+    name: "DatasetAnchored",
+    anonymous: false,
+    inputs: [
+      { name: "missionId", type: "uint256", indexed: true },
+      { name: "merkleRoot", type: "bytes32", indexed: false },
+      { name: "previousRoot", type: "bytes32", indexed: false },
+      { name: "sampleCount", type: "uint256", indexed: false },
+      { name: "metadataHash", type: "bytes32", indexed: false },
+    ],
+  },
+  { type: "error", name: "MissionNotEnded", inputs: [{ name: "missionId", type: "uint256" }] },
+  { type: "error", name: "AlreadyFinalized", inputs: [{ name: "missionId", type: "uint256" }] },
+  {
+    type: "error",
+    name: "SampleCountMismatch",
+    inputs: [
+      { name: "expected", type: "uint256" },
+      { name: "actual", type: "uint256" },
+    ],
+  },
+  { type: "error", name: "InvalidRoot", inputs: [] },
+  { type: "error", name: "InvalidMetadata", inputs: [] },
+  { type: "error", name: "EnforcedPause", inputs: [] },
+  {
+    type: "error",
+    name: "AccessControlUnauthorizedAccount",
+    inputs: [
+      { name: "account", type: "address" },
+      { name: "neededRole", type: "bytes32" },
+    ],
+  },
+] as const;
+
 /** `MissionStatus` enum order in IMissionVault.sol. */
 export const MISSION_STATUS = { None: 0, Active: 1, Completed: 2, Cancelled: 3 } as const;
 
@@ -128,4 +198,6 @@ export const MISSION_STATUS = { None: 0, Active: 1, Completed: 2, Cancelled: 3 }
 export const GAS_CAP = {
   approveSubmission: BigInt(200_000),
   withdrawFor: BigInt(160_000),
+  // G6b: anchorDataset max 149,939 in the same report (re-anchor over a set root) → 200k.
+  anchorDataset: BigInt(200_000),
 } as const;

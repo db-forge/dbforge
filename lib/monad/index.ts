@@ -11,6 +11,8 @@ import type { SettlementStore } from "./store/types";
 
 export { SettlementAdapter } from "./adapter";
 export type {
+  AnchorDatasetInput,
+  AnchorDatasetResult,
   ContributorBalance,
   SettleSubmissionInput,
   SettleSubmissionResult,
@@ -24,6 +26,20 @@ export { createSupabaseSettlementStore, SupabaseSettlementStore } from "./store/
 export { MemorySettlementStore } from "./store/memory";
 export type { SettlementStore } from "./store/types";
 export type { SettlementLogEvent, SettlementLogger } from "./log";
+
+// G6c read helpers (no key): dataset tree from the chain's Settled events, mission-create check, dataset reads.
+// Each takes an optional MonadReader; the default is built from env (MONAD_FACTORY_ADDRESS, MONAD_REGISTRY_ADDRESS).
+export {
+  buildDatasetTree,
+  buildTreeFromHashes,
+  datasetLeaf,
+  type DatasetTree,
+  type OnChainDatasetTree,
+  type SettledEntry,
+} from "./merkle";
+export { canonicalJson, metadataHash, readMissionCreated, type MissionCreatedView } from "./mission";
+export { getDataset, getSampleProof, type DatasetView, type SampleProof } from "./dataset";
+export { createMonadReader, type MonadReader } from "./reader";
 
 /**
  * Builds the adapter from server env (see README). One adapter per process is enough; several processes may

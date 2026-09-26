@@ -20,16 +20,20 @@ import {
   type PublicClient,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { GAS_CAP, missionVaultAbi } from "./abi";
+import { GAS_CAP, missionVaultAbi, provenanceRegistryAbi } from "./abi";
 import type { MonadAdapterConfig } from "./config";
 import { MonadSettlementError } from "./errors";
 
+/** Calls the verifier key sends. `anchorDataset` goes to the ProvenanceRegistry, the others to the Vault. */
 export type VaultCall =
   | { functionName: "approveSubmission"; args: readonly [bigint, Address, Hex] }
-  | { functionName: "withdrawFor"; args: readonly [Address] };
+  | { functionName: "withdrawFor"; args: readonly [Address] }
+  | { functionName: "anchorDataset"; args: readonly [bigint, Hex, bigint, Hex] };
 
 export interface PreparedTx {
   call: VaultCall;
+  /** Contract the tx is sent to. */
+  to: Address;
   data: Hex;
   gas: bigint;
   maxFeePerGas: bigint;
@@ -46,6 +50,20 @@ export interface OnChainSettlement {
   settled: boolean;
   contributor: Address;
   amount: bigint;
+}
+
+export interface MissionSummary {
+  status: number;
+  acceptedCount: bigint;
+}
+
+/** `ProvenanceRegistry.getDataset`. `anchoredAt == 0` = never anchored. */
+export interface OnChainDataset {
+  merkleRoot: Hex;
+  metadataHash: Hex;
+  sampleCount: bigint;
+  anchoredAt: bigint;
+  finalized: boolean;
 }
 
 export interface BalanceTriple {
@@ -75,8 +93,15 @@ export class BroadcastError extends Error {
 export interface VaultChain {
   readonly vault: Address;
   readonly signer: Address;
+  /** null when MONAD_REGISTRY_ADDRESS is not configured; the registry methods then throw INVALID_INPUT. */
+  readonly registry: Address | null;
   isPaused(): Promise<boolean>;
   getMissionStatus(missionId: bigint): Promise<number>;
+  getMission(missionId: bigint): Promise<MissionSummary>;
+  isRegistryPaused(): Promise<boolean>;
+  getDataset(missionId: bigint): Promise<OnChainDataset>;
+  /** Latest DatasetAnchored tx of `missionId` that set exactly this root and metadata hash, or null. */
+  findDatasetAnchoredTx(missionId: bigint, merkleRoot: Hex, metadataHash: Hex): Promise<Hex | null>;
   getSettlement(missionId: bigint, submissionHash: Hex): Promise<OnChainSettlement>;
   findSettledTx(missionId: bigint, submissionHash: Hex): Promise<Hex | null>;
   getContributorBalance(contributor: Address): Promise<BalanceTriple>;
@@ -105,7 +130,15 @@ export function mapChainError(e: unknown): MonadSettlementError {
       const name = reverted.data?.errorName ?? "UnknownRevert";
       if (name === "EnforcedPause") return new MonadSettlementError("CONTRACT_PAUSED", { reason: name });
       // Input the contract rejects (G4 L-1: contributor == Vault → InvalidContributor).
-      if (name === "InvalidContributor" || name === "ZeroAddress" || name === "InvalidSubmission") {
+      // G6b: dataset arguments the Registry rejects (zero root / zero manifest hash / count != acceptedCount).
+      if (
+        name === "InvalidContributor" ||
+        name === "ZeroAddress" ||
+        name === "InvalidSubmission" ||
+        name === "InvalidRoot" ||
+        name === "InvalidMetadata" ||
+        name === "SampleCountMismatch"
+      ) {
         return new MonadSettlementError("INVALID_INPUT", { reason: name });
       }
       if (name === "AccessControlUnauthorizedAccount") {
@@ -143,6 +176,20 @@ export function createViemVaultChain(config: MonadAdapterConfig, verifierKey: He
   const client: PublicClient = createPublicClient({ chain, transport: http(config.rpcUrl) });
   const account = privateKeyToAccount(verifierKey); // the key stays inside this closure
   const vault = config.vaultAddress;
+  const registry = config.registryAddress ?? null;
+  const requireRegistry = (): Address => {
+    if (!registry) {
+      throw new MonadSettlementError("INVALID_INPUT", {
+        reason: "REGISTRY_NOT_CONFIGURED",
+        detail: "MONAD_REGISTRY_ADDRESS is not set.",
+      });
+    }
+    return registry;
+  };
+  const target = (call: VaultCall) =>
+    call.functionName === "anchorDataset"
+      ? ({ address: requireRegistry(), abi: provenanceRegistryAbi } as const)
+      : ({ address: vault, abi: missionVaultAbi } as const);
 
   const read = async <T>(fn: () => Promise<T>): Promise<T> => {
     try {
@@ -172,6 +219,7 @@ export function createViemVaultChain(config: MonadAdapterConfig, verifierKey: He
   return {
     vault,
     signer: account.address,
+    registry,
 
     isPaused: () => read(() => client.readContract({ address: vault, abi: missionVaultAbi, functionName: "paused" })),
 
@@ -184,6 +232,59 @@ export function createViemVaultChain(config: MonadAdapterConfig, verifierKey: He
           args: [missionId],
         });
         return Number(m.status);
+      }),
+
+    getMission: (missionId) =>
+      read(async () => {
+        const m = await client.readContract({ address: vault, abi: missionVaultAbi, functionName: "getMission", args: [missionId] });
+        return { status: Number(m.status), acceptedCount: m.acceptedCount };
+      }),
+
+    isRegistryPaused: () =>
+      read(() => client.readContract({ address: requireRegistry(), abi: provenanceRegistryAbi, functionName: "paused" })),
+
+    getDataset: (missionId) =>
+      read(async () => {
+        const d = await client.readContract({
+          address: requireRegistry(),
+          abi: provenanceRegistryAbi,
+          functionName: "getDataset",
+          args: [missionId],
+        });
+        return {
+          merkleRoot: d.merkleRoot,
+          metadataHash: d.metadataHash,
+          sampleCount: d.sampleCount,
+          anchoredAt: d.anchoredAt,
+          finalized: d.finalized,
+        };
+      }),
+
+    findDatasetAnchoredTx: (missionId, merkleRoot, metadataHash) =>
+      read(async () => {
+        const address = requireRegistry();
+        // merkleRoot is not indexed: filter by missionId on the node, by root + metadata here.
+        const logs = await scanLogsBackwards(
+          config.vaultDeployBlock,
+          async (fromBlock, toBlock) =>
+            (
+              await client.getContractEvents({
+                address,
+                abi: provenanceRegistryAbi,
+                eventName: "DatasetAnchored",
+                args: { missionId },
+                fromBlock,
+                toBlock,
+                strict: true,
+              })
+            ).filter(
+              (l) =>
+                l.args.merkleRoot.toLowerCase() === merkleRoot.toLowerCase() &&
+                l.args.metadataHash.toLowerCase() === metadataHash.toLowerCase(),
+            ),
+          true,
+        );
+        return logs.length > 0 ? logs[logs.length - 1].transactionHash : null;
       }),
 
     getSettlement: (missionId, submissionHash) =>
@@ -246,7 +347,7 @@ export function createViemVaultChain(config: MonadAdapterConfig, verifierKey: He
 
     prepare: (call) =>
       read(async () => {
-        const base = { address: vault, abi: missionVaultAbi, account: account.address } as const;
+        const base = { ...target(call), account: account.address } as const;
         // Simulate first: a revert on Monad still costs the whole gas limit, so never send what would revert.
         await client.simulateContract({ ...base, ...call } as Parameters<typeof client.simulateContract>[0]);
         const estimate = await client.estimateContractGas({ ...base, ...call } as Parameters<
@@ -263,15 +364,15 @@ export function createViemVaultChain(config: MonadAdapterConfig, verifierKey: He
         if (balance < gas * fees.maxFeePerGas) {
           throw new MonadSettlementError("INSUFFICIENT_FUNDS", { reason: "VERIFIER_BALANCE_TOO_LOW" });
         }
-        const data = encodeFunctionData({ abi: missionVaultAbi, ...call } as Parameters<typeof encodeFunctionData>[0]);
-        return { call, data, gas, maxFeePerGas: fees.maxFeePerGas, maxPriorityFeePerGas: fees.maxPriorityFeePerGas };
+        const data = encodeFunctionData({ abi: base.abi, ...call } as Parameters<typeof encodeFunctionData>[0]);
+        return { call, to: base.address, data, gas, maxFeePerGas: fees.maxFeePerGas, maxPriorityFeePerGas: fees.maxPriorityFeePerGas };
       }),
 
     async sign(tx, nonce) {
       const raw = await account.signTransaction({
         type: "eip1559",
         chainId: config.chainId,
-        to: vault,
+        to: tx.to,
         data: tx.data,
         value: BigInt(0),
         nonce,

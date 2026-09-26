@@ -12,12 +12,12 @@ import {
   type AbiFunction,
   type AbiEvent,
 } from "viem";
-import { GAS_CAP, missionVaultAbi } from "../abi";
+import { GAS_CAP, missionVaultAbi, provenanceRegistryAbi } from "../abi";
 import { classifyBroadcastError, mapChainError } from "../chain";
 import { loadConfigFromEnv, readVerifierKey, MonadConfigError } from "../config";
 import { MonadSettlementError } from "../errors";
 import { SupabaseSettlementStore } from "../store/supabase";
-import { parseAddress, parseMissionId, parseSubmissionHash } from "../validation";
+import { parseAddress, parseBytes32, parseMissionId, parsePositiveUint, parseSubmissionHash } from "../validation";
 import { loadArtifact } from "./anvil";
 
 const code = (fn: () => unknown) => {
@@ -177,4 +177,48 @@ test("SupabaseSettlementStore calls the SQL functions with their parameter names
   assert.equal(await store.allocateNonce("0xs", 3, 500), 42);
   assert.deepEqual(calls.at(-1)?.args, { p_signer: "0xs", p_chain_nonce: 3, p_idle_ms: 500 });
   await assert.rejects(store.get(key), (e: MonadSettlementError) => e.code === "RPC_ERROR" && !e.message.includes("secret"));
+});
+
+test("G6b: registry ABI matches the ProvenanceRegistry artifact", () => {
+  const artifact = loadArtifact("ProvenanceRegistry").abi;
+  const sig = (item: { type: string }) => {
+    if (item.type === "function") return toFunctionSelector(item as AbiFunction);
+    if (item.type === "event") return toEventSelector(item as AbiEvent);
+    return toFunctionSelector({ ...(item as AbiFunction), type: "function", outputs: [], stateMutability: "view" } as AbiFunction);
+  };
+  const artifactSigs = new Set(artifact.map(sig));
+  for (const item of provenanceRegistryAbi) assert.ok(artifactSigs.has(sig(item)), `${item.type} ${item.name}`);
+  const ours = provenanceRegistryAbi.find((x) => x.type === "function" && x.name === "getDataset") as AbiFunction;
+  const theirs = artifact.find((x) => x.type === "function" && x.name === "getDataset") as AbiFunction;
+  assert.equal(JSON.stringify(ours.outputs, ["type", "components"]), JSON.stringify(theirs.outputs, ["type", "components"]));
+  const indexed = (abi: readonly unknown[]) =>
+    ((abi as AbiEvent[]).find((x) => x.type === "event" && x.name === "DatasetAnchored") as AbiEvent).inputs.map((i) => i.indexed);
+  assert.deepEqual(indexed(provenanceRegistryAbi), indexed(artifact));
+  assert.ok(GAS_CAP.anchorDataset >= BigInt(149_939) && GAS_CAP.anchorDataset <= BigInt(250_000));
+});
+
+test("G6b: registry reverts map to typed errors; config reads MONAD_REGISTRY_ADDRESS; bytes32/uint parsers", () => {
+  const revert = (name: string, args: readonly unknown[] = []) =>
+    new ContractFunctionRevertedError({
+      abi: provenanceRegistryAbi,
+      functionName: "anchorDataset",
+      data: encodeErrorResult({ abi: provenanceRegistryAbi, errorName: name, args } as never),
+    });
+  const pair = (e: MonadSettlementError) => [e.code, e.reason];
+  assert.deepEqual(pair(mapChainError(revert("InvalidRoot"))), ["INVALID_INPUT", "InvalidRoot"]);
+  assert.deepEqual(pair(mapChainError(revert("InvalidMetadata"))), ["INVALID_INPUT", "InvalidMetadata"]);
+  assert.deepEqual(pair(mapChainError(revert("SampleCountMismatch", [BigInt(2), BigInt(3)]))), ["INVALID_INPUT", "SampleCountMismatch"]);
+  assert.deepEqual(pair(mapChainError(revert("MissionNotEnded", [BigInt(1)]))), ["TX_REVERTED", "MissionNotEnded"]);
+  assert.deepEqual(pair(mapChainError(revert("AlreadyFinalized", [BigInt(1)]))), ["TX_REVERTED", "AlreadyFinalized"]);
+  assert.equal(mapChainError(revert("EnforcedPause")).code, "CONTRACT_PAUSED");
+
+  const env = { MONAD_RPC_URL: "https://rpc.example", MONAD_VAULT_ADDRESS: "0x" + "ab".repeat(20) };
+  assert.equal(loadConfigFromEnv(env).registryAddress, undefined);
+  assert.equal(loadConfigFromEnv({ ...env, MONAD_REGISTRY_ADDRESS: "0x" + "cd".repeat(20) }).registryAddress?.toLowerCase(), "0x" + "cd".repeat(20));
+  assert.throws(() => loadConfigFromEnv({ ...env, MONAD_REGISTRY_ADDRESS: "0x12" }), MonadConfigError);
+
+  assert.equal(parseBytes32("0x" + "AB".repeat(32), "r"), "0x" + "ab".repeat(32));
+  assert.equal(code(() => parseBytes32("0x" + "00".repeat(32), "r")), "INVALID_INPUT");
+  assert.equal(parsePositiveUint("7", "n"), BigInt(7));
+  assert.equal(code(() => parsePositiveUint(0, "n")), "INVALID_INPUT");
 });

@@ -30,7 +30,12 @@ export interface Harness {
 export function makeAdapter(
   d: Deployment,
   store: SettlementStore,
-  opts: { timings?: Partial<AdapterTimings>; wrap?: (c: VaultChain) => VaultChain; logs?: SettlementLogEvent[] } = {},
+  opts: {
+    timings?: Partial<AdapterTimings>;
+    wrap?: (c: VaultChain) => VaultChain;
+    logs?: SettlementLogEvent[];
+    registry?: Address;
+  } = {},
 ): Harness {
   const timings = { ...FAST, ...opts.timings };
   const real = createViemVaultChain(
@@ -38,6 +43,7 @@ export function makeAdapter(
       rpcUrl: d.rpcUrl,
       chainId: 31337,
       vaultAddress: d.vault,
+      ...(opts.registry ? { registryAddress: opts.registry } : {}),
       logChunkSize: BigInt(1_000),
       ...timings,
     },

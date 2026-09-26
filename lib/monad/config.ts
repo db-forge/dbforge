@@ -5,6 +5,8 @@ export interface MonadAdapterConfig {
   rpcUrl: string;
   chainId: number;
   vaultAddress: Address;
+  /** ProvenanceRegistry; only `anchorDataset` needs it (optional so settlement runs without it). */
+  registryAddress?: Address;
   /** First block to scan for Vault logs (deploy block). */
   vaultDeployBlock: bigint;
   /** Max wait for a receipt (and for another instance's in-flight tx) per call. */
@@ -50,7 +52,7 @@ function positiveInt(env: Env, name: string, fallback: number): number {
 /**
  * Reads the adapter config. Server-only variables:
  *   MONAD_RPC_URL (fallback NEXT_PUBLIC_MONAD_RPC_URL), MONAD_CHAIN_ID (fallback NEXT_PUBLIC_MONAD_CHAIN_ID, 10143),
- *   MONAD_VAULT_ADDRESS (required), MONAD_VAULT_DEPLOY_BLOCK (0), MONAD_TX_TIMEOUT_MS (60000),
+ *   MONAD_VAULT_ADDRESS (required), MONAD_REGISTRY_ADDRESS (optional), MONAD_VAULT_DEPLOY_BLOCK (0), MONAD_TX_TIMEOUT_MS (60000),
  *   MONAD_TX_CONFIRMATIONS (1), MONAD_POLL_INTERVAL_MS (500), MONAD_LEASE_MS (30000),
  *   MONAD_DROP_GRACE_MS (10000), MONAD_LOG_CHUNK_BLOCKS (1000).
  */
@@ -61,6 +63,10 @@ export function loadConfigFromEnv(env: Env = process.env): MonadAdapterConfig {
   if (!vault || !isAddress(vault, { strict: false })) {
     throw new MonadConfigError("MONAD_VAULT_ADDRESS must be the MissionVault address.");
   }
+  const registry = env.MONAD_REGISTRY_ADDRESS;
+  if (registry && !isAddress(registry, { strict: false })) {
+    throw new MonadConfigError("MONAD_REGISTRY_ADDRESS must be the ProvenanceRegistry address.");
+  }
   const deployBlock = env.MONAD_VAULT_DEPLOY_BLOCK || "0";
   if (!/^[0-9]+$/.test(deployBlock)) throw new MonadConfigError("MONAD_VAULT_DEPLOY_BLOCK must be a block number.");
 
@@ -69,6 +75,7 @@ export function loadConfigFromEnv(env: Env = process.env): MonadAdapterConfig {
     rpcUrl,
     chainId: positiveInt(env, chainIdVar, DEFAULTS.chainId),
     vaultAddress: getAddress(vault),
+    ...(registry ? { registryAddress: getAddress(registry) } : {}),
     vaultDeployBlock: BigInt(deployBlock),
     txTimeoutMs: positiveInt(env, "MONAD_TX_TIMEOUT_MS", DEFAULTS.txTimeoutMs),
     confirmations: positiveInt(env, "MONAD_TX_CONFIRMATIONS", DEFAULTS.confirmations),

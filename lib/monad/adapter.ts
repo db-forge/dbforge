@@ -4,13 +4,13 @@
 import { randomUUID } from "node:crypto";
 import { parseEventLogs, type Address, type Hex } from "viem";
 import { MISSION_STATUS, missionVaultAbi } from "./abi";
-import { BroadcastError, type PreparedTx, type ReceiptInfo, type VaultChain } from "./chain";
+import { BroadcastError, type PreparedTx, type ReceiptInfo, type VaultCall, type VaultChain } from "./chain";
 import type { MonadAdapterConfig } from "./config";
 import { MonadSettlementError, isMonadSettlementError } from "./errors";
 import { silentLogger, type SettlementLogger } from "./log";
-import { waitForTx, type InFlightTx, type WaitOptions } from "./receipts";
+import { waitForTx, type InFlightTx, type WaitOptions, type WaitOutcome } from "./receipts";
 import type { SettlementKey, SettlementRecord, SettlementStore } from "./store/types";
-import { parseAddress, parseMissionId, parseSubmissionHash, requireObject } from "./validation";
+import { parseAddress, parseBytes32, parseMissionId, parsePositiveUint, parseSubmissionHash, requireObject } from "./validation";
 
 export interface SettleSubmissionInput {
   chainMissionId: string | number | bigint;
@@ -43,6 +43,21 @@ export interface WithdrawalEntry {
   amount: string;
 }
 
+export interface AnchorDatasetInput {
+  chainMissionId: string | number | bigint;
+  /** Root from buildDatasetTree (merkle.ts). */
+  merkleRoot: string;
+  /** Must equal the mission's on-chain acceptedCount. */
+  sampleCount: string | number | bigint;
+  /** keccak256 of the dataset manifest; stored on chain as the dataset's metadataHash. */
+  manifestHash: string;
+}
+export interface AnchorDatasetResult {
+  /** null only when the chain already holds this anchor but its DatasetAnchored log is outside the scanned range. */
+  txHash: Hex | null;
+  status: "anchored";
+}
+
 export type AdapterTimings = Pick<
   MonadAdapterConfig,
   "txTimeoutMs" | "confirmations" | "pollIntervalMs" | "leaseMs" | "dropGraceMs" | "vaultDeployBlock"
@@ -66,6 +81,14 @@ const MAX_HOLE_REPAIR = 16;
 
 class LeaseLost extends Error {}
 
+interface AnchorRequest {
+  missionId: bigint;
+  root: Hex;
+  count: bigint;
+  manifest: Hex;
+  log: { chainMissionId: string; merkleRoot: string };
+}
+
 interface SettleRequest {
   missionId: bigint;
   contributor: Address;
@@ -80,6 +103,8 @@ export class SettlementAdapter {
   private readonly t: AdapterTimings;
   private readonly log: SettlementLogger;
   private readonly id: string;
+  /** Identical anchorDataset calls in this process share one tx (double submit from the UI). */
+  private readonly anchorsInFlight = new Map<string, Promise<AnchorDatasetResult>>();
 
   constructor(options: SettlementAdapterOptions) {
     this.chain = options.chain;
@@ -151,6 +176,21 @@ export class SettlementAdapter {
     const from = o.fromBlock === undefined ? this.t.vaultDeployBlock : BigInt(o.fromBlock as bigint | number);
     const logs = await this.chain.listWithdrawn(contributor, from);
     return logs.map((l) => ({ txHash: l.txHash, blockNumber: l.blockNumber.toString(), amount: l.amount.toString() }));
+  }
+
+  /**
+   * Anchors (or re-anchors, until the buyer finalizes) the dataset root of a Completed/Cancelled mission on the
+   * ProvenanceRegistry, signed by the verifier key. Returns only after a successful receipt. The same root, count
+   * and manifest hash already on chain → success without a tx. The backend never calls finalizeDataset.
+   */
+  async anchorDataset(input: AnchorDatasetInput): Promise<AnchorDatasetResult> {
+    const req = this.parseAnchor(input);
+    const key = `${req.missionId}:${req.root}:${req.count}:${req.manifest}`;
+    const running = this.anchorsInFlight.get(key);
+    if (running) return running;
+    const p = this.anchorLogged(req).finally(() => this.anchorsInFlight.delete(key));
+    this.anchorsInFlight.set(key, p);
+    return p;
   }
 
   /** `paused()` on the Vault. The UI should block "Create mission" while true (G4 L-2); settlement is refused anyway. */
@@ -303,12 +343,123 @@ export class SettlementAdapter {
 
   private async withdrawFor(contributor: Address, deadline: number): Promise<WithdrawResult> {
     const prepared = await this.chain.prepare({ functionName: "withdrawFor", args: [contributor] });
+    const { hash, outcome } = await this.sendUnkeyed(prepared, deadline, { contributor }, {});
+    if (outcome.kind === "replaced") throw new MonadSettlementError("RPC_ERROR", { reason: "TX_DROPPED", txHash: hash });
+    if (outcome.receipt.status !== "success") {
+      // G4 L-4: someone withdrew first (front-run) → the contributor is already paid. Never retried.
+      const left = (await this.chain.getContributorBalance(contributor)).withdrawable;
+      const reason = left === BigInt(0) ? "NothingToWithdraw" : "REVERTED_ON_CHAIN";
+      throw new MonadSettlementError("TX_REVERTED", { reason, txHash: hash });
+    }
+    const log = parseEventLogs({ abi: missionVaultAbi, eventName: "Withdrawn", logs: outcome.receipt.logs as never }).find(
+      (l) => l.address.toLowerCase() === this.chain.vault.toLowerCase() && l.args.contributor === contributor,
+    );
+    return { txHash: hash, amount: (log?.args.amount ?? BigInt(0)).toString() };
+  }
+
+  // ------------------------------------------------------------------------------------------------ anchorDataset
+
+  private async anchorLogged(req: AnchorRequest): Promise<AnchorDatasetResult> {
+    const startedAt = Date.now();
+    try {
+      const result = await this.anchor(req, startedAt + this.t.txTimeoutMs);
+      this.log({ event: "anchor.ok", ...req.log, txHash: result.txHash ?? undefined, durationMs: Date.now() - startedAt });
+      return result;
+    } catch (e) {
+      const err = isMonadSettlementError(e) ? e : new MonadSettlementError("RPC_ERROR", { reason: "UNEXPECTED" });
+      this.log({ event: "anchor.error", ...req.log, code: err.code, reason: err.reason, txHash: err.txHash,
+        durationMs: Date.now() - startedAt });
+      throw err;
+    }
+  }
+
+  private async anchor(req: AnchorRequest, deadline: number): Promise<AnchorDatasetResult> {
+    // Read first: an identical anchor needs no tx, and a finalized dataset would revert (billed in full on Monad).
+    const already = await this.readAnchored(req);
+    if (already) return already;
+    const prepared = await this.prepareAnchor(req);
+    const { hash, outcome } = await this.sendUnkeyed(prepared, deadline, req.log, req.log);
+    if (outcome.kind === "replaced") {
+      const landed = await this.readAnchored(req); // e.g. an identical anchor from another instance took the slot
+      if (landed) return landed;
+      throw new MonadSettlementError("RPC_ERROR", { reason: "TX_DROPPED", txHash: hash });
+    }
+    if (outcome.receipt.status !== "success") {
+      throw new MonadSettlementError("TX_REVERTED", { reason: "REVERTED_ON_CHAIN", txHash: hash });
+    }
+    return { txHash: hash, status: "anchored" };
+  }
+
+  /** The anchor already on chain when it matches the request; throws when the buyer finalized another one. */
+  private async readAnchored(req: AnchorRequest): Promise<AnchorDatasetResult | null> {
+    const d = await this.chain.getDataset(req.missionId);
+    if (d.anchoredAt === BigInt(0)) return null;
+    const same =
+      d.merkleRoot.toLowerCase() === req.root && d.metadataHash.toLowerCase() === req.manifest && d.sampleCount === req.count;
+    if (same) {
+      const txHash = await this.chain.findDatasetAnchoredTx(req.missionId, req.root, req.manifest);
+      this.log({ event: "anchor.already_anchored", ...req.log, txHash: txHash ?? undefined, idempotent: true });
+      return { txHash, status: "anchored" };
+    }
+    if (d.finalized) {
+      throw new MonadSettlementError("TX_REVERTED", {
+        reason: "AlreadyFinalized",
+        detail: "The buyer finalized another root. Not sent.",
+      });
+    }
+    return null;
+  }
+
+  /** The Registry's own checks, done as reads so that a doomed tx is never paid for; then simulate + gas cap. */
+  private async prepareAnchor(req: AnchorRequest): Promise<PreparedTx> {
+    if (await this.chain.isRegistryPaused()) {
+      throw new MonadSettlementError("CONTRACT_PAUSED", {
+        reason: "EnforcedPause",
+        detail: "Dataset anchoring is paused. Not sent.",
+      });
+    }
+    const m = await this.chain.getMission(req.missionId);
+    if (m.status === MISSION_STATUS.None) throw new MonadSettlementError("MISSION_NOT_FOUND");
+    if (m.status !== MISSION_STATUS.Completed && m.status !== MISSION_STATUS.Cancelled) {
+      throw new MonadSettlementError("TX_REVERTED", { reason: "MissionNotEnded", detail: "Mission is still active. Not sent." });
+    }
+    if (m.acceptedCount !== req.count) {
+      throw new MonadSettlementError("INVALID_INPUT", {
+        reason: "SampleCountMismatch",
+        detail: `sampleCount must equal acceptedCount (${m.acceptedCount}).`,
+      });
+    }
+    const call: VaultCall = { functionName: "anchorDataset", args: [req.missionId, req.root, req.count, req.manifest] };
+    return this.chain.prepare(call);
+  }
+
+  private parseAnchor(input: AnchorDatasetInput): AnchorRequest {
+    const o = requireObject(input);
+    const missionId = parseMissionId(o.chainMissionId);
+    const root = parseBytes32(o.merkleRoot, "merkleRoot");
+    const count = parsePositiveUint(o.sampleCount, "sampleCount");
+    const manifest = parseBytes32(o.manifestHash, "manifestHash");
+    return { missionId, root, count, manifest, log: { chainMissionId: missionId.toString(), merkleRoot: root } };
+  }
+
+  // ------------------------------------------------------------------------------------------------ helpers
+
+  /**
+   * Sends a tx that has no idempotency record (withdrawFor, anchorDataset): nonce from the signer counter, one
+   * broadcast, wait. A used nonce is re-allocated; a definitive rejection frees the nonce for the next tx.
+   */
+  private async sendUnkeyed(
+    prepared: PreparedTx,
+    deadline: number,
+    logFields: { contributor?: string; chainMissionId?: string; merkleRoot?: string },
+    waitContext: WaitOptions["logContext"],
+  ): Promise<{ hash: Hex; outcome: WaitOutcome }> {
     const signer = this.signerKey();
     for (let i = 0; ; i++) {
       const pending = await this.chain.getNonce(this.chain.signer, "pending");
       const nonce = await this.store.allocateNonce(signer, pending, this.t.leaseMs);
       const { hash, raw } = await this.chain.sign(prepared, nonce);
-      this.log({ event: "tx.broadcast", contributor, txHash: hash, nonce });
+      this.log({ event: "tx.broadcast", ...logFields, txHash: hash, nonce });
       const kind = await this.tryBroadcast(raw);
       if (kind === "nonce_too_low" && i < MAX_NONCE_RETRIES) continue; // used nonce: not a gap
       if (kind !== "ok") {
@@ -316,22 +467,10 @@ export class SettlementAdapter {
         if (kind === "insufficient_funds") throw new MonadSettlementError("INSUFFICIENT_FUNDS", { reason: "BROADCAST" });
         throw new MonadSettlementError("RPC_ERROR", { reason: kind === "nonce_too_low" ? "NONCE_CONFLICT" : "BROADCAST_REJECTED" });
       }
-      const outcome = await waitForTx({ txHash: hash, rawTx: raw, nonce, signer }, this.waitOptions(deadline, {}));
-      if (outcome.kind === "replaced") throw new MonadSettlementError("RPC_ERROR", { reason: "TX_DROPPED", txHash: hash });
-      if (outcome.receipt.status !== "success") {
-        // G4 L-4: someone withdrew first (front-run) → the contributor is already paid. Never retried.
-        const left = (await this.chain.getContributorBalance(contributor)).withdrawable;
-        const reason = left === BigInt(0) ? "NothingToWithdraw" : "REVERTED_ON_CHAIN";
-        throw new MonadSettlementError("TX_REVERTED", { reason, txHash: hash });
-      }
-      const log = parseEventLogs({ abi: missionVaultAbi, eventName: "Withdrawn", logs: outcome.receipt.logs as never }).find(
-        (l) => l.address.toLowerCase() === this.chain.vault.toLowerCase() && l.args.contributor === contributor,
-      );
-      return { txHash: hash, amount: (log?.args.amount ?? BigInt(0)).toString() };
+      const outcome = await waitForTx({ txHash: hash, rawTx: raw, nonce, signer }, this.waitOptions(deadline, waitContext));
+      return { hash, outcome };
     }
   }
-
-  // ------------------------------------------------------------------------------------------------ helpers
 
   private async tryBroadcast(raw: Hex): Promise<"ok" | "nonce_too_low" | "insufficient_funds" | "rejected"> {
     try {

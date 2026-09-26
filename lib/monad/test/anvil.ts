@@ -163,3 +163,14 @@ export async function startAnvilWithContracts(): Promise<Deployment> {
     },
   };
 }
+
+/** Deploys a ProvenanceRegistry wired to `d.vault` and grants VERIFIER_ROLE to `d.verifier` (G6b tests). */
+export async function deployRegistry(d: Deployment): Promise<{ registry: Address; registryAbi: Abi }> {
+  const art = loadArtifact("ProvenanceRegistry");
+  const wallet = createWalletClient({ account: d.admin, chain: foundry, transport: http(d.rpcUrl), pollingInterval: 50 });
+  const hash = await wallet.deployContract({ abi: art.abi, bytecode: art.bytecode.object, args: [d.admin.address, d.vault] });
+  const r = await d.publicClient.waitForTransactionReceipt({ hash });
+  if (!r.contractAddress) throw new Error("deploy ProvenanceRegistry failed");
+  await d.send(d.admin, r.contractAddress, art.abi, "grantRole", [keccak256(toHex("VERIFIER_ROLE")), d.verifier.address]);
+  return { registry: r.contractAddress, registryAbi: art.abi };
+}

@@ -42,6 +42,8 @@ and nonces (there is no single-worker rule).
 |---|---|---|---|
 | `MONAD_VERIFIER_PRIVATE_KEY` | yes | — | Verifier hot wallet (`VERIFIER_ROLE`). It is never logged or returned. |
 | `MONAD_VAULT_ADDRESS` | yes | — | MissionVault address |
+| `MONAD_REGISTRY_ADDRESS` | for datasets | — | ProvenanceRegistry. `anchorDataset`, `getDataset` and `getSampleProof` need it (`INVALID_INPUT` without it); settlement does not. |
+| `MONAD_FACTORY_ADDRESS` | for missions | — | MissionFactory. `readMissionCreated` needs it. |
 | `MONAD_RPC_URL` | no | `NEXT_PUBLIC_MONAD_RPC_URL` | JSON-RPC endpoint |
 | `MONAD_CHAIN_ID` | no | `NEXT_PUBLIC_MONAD_CHAIN_ID`, else `10143` | |
 | `MONAD_VAULT_DEPLOY_BLOCK` | no | `0` | First block for log scans (set it: public RPCs limit `eth_getLogs`) |
@@ -53,7 +55,8 @@ and nonces (there is no single-worker rule).
 | `MONAD_LOG_CHUNK_BLOCKS` | no | `1000` | `eth_getLogs` range per request |
 
 Monad testnet deployment (`contracts/deployments/monad-testnet.json`, commit 94765a5):
-`MONAD_VAULT_ADDRESS=0xcc10787653F33fefA68a455bEe3daB964C22e0b3`, `MONAD_VAULT_DEPLOY_BLOCK=65855492`.
+`MONAD_VAULT_ADDRESS=0xcc10787653F33fefA68a455bEe3daB964C22e0b3`, `MONAD_VAULT_DEPLOY_BLOCK=65855492`,
+`MONAD_REGISTRY_ADDRESS=0x4e9D5E72c00e30be7A0431B6b69BF296362E99Ec`, `MONAD_FACTORY_ADDRESS=0xC462FbC4ae4D522C19714c9DeE4D6f4Ff03c4c73`.
 The key of verifier `0xE83b…558B` goes in the server env only. Always take the addresses from the JSON or the env.
 They are not hard-coded.
 
@@ -66,8 +69,12 @@ They are not hard-coded.
 | `getContributorBalance({ contributorAddress })` | `{ credited, withdrawn, withdrawable }` (wei strings) |
 | `withdrawForContributor({ contributorAddress })` | `{ txHash, amount }`. The verifier pays the gas and the Vault sends the MON **only to the contributor**. |
 | `listWithdrawals({ contributorAddress, fromBlock? })` | `[{ txHash, blockNumber, amount }]` from `Withdrawn` logs |
+| `anchorDataset({ chainMissionId, merkleRoot, sampleCount, manifestHash })` | `{ txHash, status: "anchored" }` after a successful receipt. Idempotent. See the dataset anchor flow below. |
 | `isSettlementPaused()` | `paused()` of the Vault. The UI should block "Create mission" while it is true (G4 L-2). |
 | `resyncNonce()` | Ops only (key rotation, DB restore): set the stored nonce counter to the chain's pending nonce. |
+
+Read helpers without a key (G6c, exported from `@/lib/monad`): `buildDatasetTree`, `getDataset`,
+`getSampleProof`, `readMissionCreated`, `metadataHash`. Each takes an optional `MonadReader` (`createMonadReader(env)`).
 
 Input rules: `contributorAddress` must be EIP-55 checksummed (all-lowercase or all-uppercase is accepted). It must
 not be the zero address or the Vault (G4 L-1). `submissionHash` is `0x` + 64 hex and not zero. `chainMissionId` is a
@@ -80,11 +87,11 @@ Every failure throws a `MonadSettlementError` with `code`, a fixed `message`, an
 
 | `code` | When | Tx sent? |
 |---|---|---|
-| `INVALID_INPUT` | Bad address, hash or id. The contributor is the Vault. The key was already used with another contributor. The contract reported `InvalidContributor`, `ZeroAddress` or `InvalidSubmission`. | no |
+| `INVALID_INPUT` | Bad address, hash or id. The contributor is the Vault. The key was already used with another contributor. The contract reported `InvalidContributor`, `ZeroAddress`, `InvalidSubmission`, `InvalidRoot`, `InvalidMetadata` or `SampleCountMismatch`. `MONAD_REGISTRY_ADDRESS` missing (`REGISTRY_NOT_CONFIGURED`). | no |
 | `MISSION_NOT_FOUND` | The mission does not exist on chain | no |
-| `CONTRACT_PAUSED` | The Vault is paused (`EnforcedPause`) | no |
+| `CONTRACT_PAUSED` | The Vault is paused, or the Registry for `anchorDataset` (`EnforcedPause`) | no |
 | `INSUFFICIENT_FUNDS` | The verifier cannot pay `gas × maxFee` | no |
-| `TX_REVERTED` | The simulation would revert (`reason` = contract error, e.g. `MissionNotActive`, `NothingToWithdraw`, `VERIFIER_ROLE_MISSING`, `GAS_CAP_EXCEEDED`), or the mined tx reverted (`reason: REVERTED_ON_CHAIN` plus `txHash`) | only in the second case |
+| `TX_REVERTED` | The simulation would revert (`reason` = contract error, e.g. `MissionNotActive`, `MissionNotEnded`, `AlreadyFinalized`, `NothingToWithdraw`, `VERIFIER_ROLE_MISSING`, `GAS_CAP_EXCEEDED`), or the mined tx reverted (`reason: REVERTED_ON_CHAIN` plus `txHash`) | only in the second case |
 | `TX_TIMEOUT` | No receipt before `MONAD_TX_TIMEOUT_MS` (`txHash` is set). The job stays pending: **call again to keep waiting**, and no second tx is sent. | yes |
 | `RPC_ERROR` | RPC or store failure, broadcast rejected (`BROADCAST_REJECTED`), nonce conflict, or a replaced tx that also failed its one retry (`TX_DROPPED`) | maybe |
 
@@ -94,13 +101,74 @@ Reverts are never retried automatically: on Monad a revert costs the whole gas l
 ## Safety on Monad
 
 - Every call is simulated first (`eth_call`). Then the gas limit is set to `estimate × 1.15`, capped at **200k** for
-  `approveSubmission` and **160k** for `withdrawFor` (G3b gas report, G4 phase 1). If the estimate itself is above
+  `approveSubmission`, **160k** for `withdrawFor` (G3b gas report, G4 phase 1) and **200k** for `anchorDataset`
+  (max 149,939 in the same report). If the estimate itself is above
   the cap, nothing is sent.
 - Pause, mission existence and on-chain settlement are checked before sending. The balance check covers
   `gas × maxFeePerGas`.
 - Structured JSON log lines (`scope: "lib/monad"`) carry `event`, `chainMissionId`, `submissionHash`, `txHash`,
   `nonce`, `status`/`code`/`reason`, `durationMs`, `retry` and `idempotent`. They never contain a key, a raw tx or an
   RPC body.
+
+## Mission create flow (Mission create akışı)
+
+The buyer's wallet signs `MissionFactory.createMission(metadataHash, reward, targetCount)` from the frontend
+(wagmi) and pays the budget. The backend sends nothing here. It only checks the result:
+
+```ts
+import { metadataHash, readMissionCreated } from "@/lib/monad";
+
+// POST /api/missions  body: { txHash, title, description, requirements }
+const expected = metadataHash({ title, description, requirements }); // sorted-key JSON → keccak256
+const created = await readMissionCreated({ txHash });                // null → no receipt yet: ask the client to retry
+if (!created) return Response.json({ code: "PENDING" }, { status: 202 });
+if (created.metadataHash !== expected || created.buyer !== session.walletAddress) {
+  return Response.json({ code: "MISMATCH" }, { status: 400 });
+}
+// missions.chain_mission_id = created.missionId (from the Factory event, never from the client body)
+```
+
+`readMissionCreated` accepts only a `MissionCreated` log emitted by `MONAD_FACTORY_ADDRESS` in a successful receipt.
+The frontend must hash the same object with the same function (`metadataHash` is plain viem, no server secret).
+
+## Dataset anchor flow (Dataset anchor akışı)
+
+1. The mission ends on chain: `Completed` (target reached) or `Cancelled` (buyer). Only then the Registry accepts
+   an anchor (`MissionNotEnded` otherwise).
+2. `buildDatasetTree({ chainMissionId })` rebuilds the tree from the Vault's `Settled` events (not from the DB).
+   Leaf = `keccak256(bytes.concat(keccak256(abi.encode(submissionHash))))`, sorted pairs, the same as OpenZeppelin
+   `StandardMerkleTree.of(values, ["bytes32"])`. It throws when the log count differs from `acceptedCount`.
+3. The backend writes the dataset manifest (for example `{ missionId, root, entries }`) and hashes it:
+   `manifestHash = metadataHash(manifest)`.
+4. `anchorDataset({ chainMissionId, merkleRoot: tree.root, sampleCount: tree.hashes.length, manifestHash })`
+   with the verifier key → `{ txHash, status: "anchored" }` after a successful receipt.
+5. The **buyer** reviews the root and calls `ProvenanceRegistry.finalizeDataset(missionId, reviewedRoot)` from the
+   frontend. **The backend never calls finalize.** A re-anchor that lands first makes that call revert
+   (`RootMismatch`), so the buyer never freezes a root they did not see.
+6. Anyone can check a sample: `getSampleProof({ chainMissionId, submissionHash })` → `verified` is the answer of
+   `verifySample` on chain (in the anchored root **and** settled in this mission).
+
+```ts
+// POST /api/missions/:id/dataset/anchor
+const tree = await buildDatasetTree({ chainMissionId });
+const manifestHash = metadataHash({ missionId: String(chainMissionId), root: tree.root, entries: tree.entries });
+const { txHash } = await monad.anchorDataset({
+  chainMissionId, merkleRoot: tree.root, sampleCount: tree.hashes.length, manifestHash,
+});
+```
+
+`anchorDataset` rules (the same safety as settlement):
+- **Idempotent.** The same root, `sampleCount` and `manifestHash` already on chain → success with no tx. `txHash`
+  is the tx that set it (from the `DatasetAnchored` log), or `null` if that log is outside the scanned range.
+  Identical calls running at the same time in one process share one tx.
+- Read before sending, so a doomed tx is never paid for: Registry paused → `CONTRACT_PAUSED`; unknown mission →
+  `MISSION_NOT_FOUND`; mission still active → `TX_REVERTED` / `MissionNotEnded`; `sampleCount` ≠ `acceptedCount` →
+  `INVALID_INPUT` / `SampleCountMismatch`; finalized with another root → `TX_REVERTED` / `AlreadyFinalized`. Then
+  simulate + gas cap (200k), the same signer nonce counter as `withdrawFor`, and the receipt wait of settlement.
+- A different root or manifest re-anchors (the Registry allows it until the buyer finalizes).
+- Two processes that anchor the same values at the same moment may both send; the second tx only re-writes the same
+  values. This path has no idempotency row (the settlement table is keyed by submission), so avoid parallel anchor
+  jobs for one mission, e.g. with a status column on `missions`.
 
 ## Idempotency and nonces (the store)
 
