@@ -55,6 +55,11 @@ export async function POST(request: NextRequest) {
 
     const event = await getMissionEventReader().readMissionCreated({ txHash });
 
+    if (event === null) {
+      // No receipt yet — not an error. The client should retry shortly.
+      return NextResponse.json({ code: "PENDING", message: "Transaction not yet mined." }, { status: 202 });
+    }
+
     const { mission, created } = await createMissionFromChainEvent({
       chainMissionId: event.chainMissionId,
       buyerAddress: event.buyerAddress,

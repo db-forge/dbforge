@@ -1,14 +1,11 @@
 // Owner: Developer 3 (app/api, lib/verification, lib/supabase, supabase/)
 //
-// Read-side chain gateway boundary for settlement reconciliation. Same
-// pattern as lib/verification/settlement/gateway.ts — lib/monad does not
-// exist yet, so nothing here imports it; wire in the real adapter later
-// with a plain static import:
-//
-//   import { getSubmissionSettlementStatus } from "@/lib/monad/settlement";
-//   export function getSettlementStatusGateway(): SettlementStatusGateway {
-//     return { getSubmissionSettlementStatus };
-//   }
+// Read-side chain gateway for settlement reconciliation — wired to the
+// real lib/monad SettlementAdapter.getSettlement (confirmed shape from
+// origin/feat/contracts's lib/monad/adapter.ts at integration time).
+
+import { isMonadSettlementError, type MonadErrorCode } from "@/lib/monad";
+import { getMonadSettlementAdapter } from "../monadAdapter";
 
 export interface SettlementStatusGatewayInput {
   chainMissionId: string;
@@ -49,11 +46,36 @@ export function __setSettlementStatusGatewayForTests(
   testOverride = gateway;
 }
 
-export function getSettlementStatusGateway(): SettlementStatusGateway {
-  if (testOverride) return testOverride;
+function mapErrorKind(code: MonadErrorCode): SettlementStatusGatewayErrorKind {
+  return code === "RPC_ERROR" ? "unavailable" : "unknown";
+}
 
-  throw new SettlementStatusGatewayError(
-    "No settlement status gateway is configured yet — the Monad read adapter has not been wired in.",
-    "unavailable",
-  );
+const realGateway: SettlementStatusGateway = {
+  async getSubmissionSettlementStatus(input) {
+    try {
+      const view = await getMonadSettlementAdapter().getSettlement({
+        chainMissionId: input.chainMissionId,
+        // mediaHashHex is stored as bare 64 hex (no 0x prefix, see M1).
+        submissionHash: `0x${input.mediaHashHex}`,
+      });
+
+      if (view.status === "settled") {
+        return { settled: true, creditedAmountWei: view.amount, ...(view.txHash ? { txHash: view.txHash } : {}) };
+      }
+      return { settled: false, ...(view.status === "pending" && view.txHash ? { txHash: view.txHash } : {}) };
+    } catch (error) {
+      if (isMonadSettlementError(error)) {
+        throw new SettlementStatusGatewayError(error.message, mapErrorKind(error.code), error);
+      }
+      throw new SettlementStatusGatewayError(
+        "Unexpected error reading settlement status from the chain.",
+        "unknown",
+        error,
+      );
+    }
+  },
+};
+
+export function getSettlementStatusGateway(): SettlementStatusGateway {
+  return testOverride ?? realGateway;
 }

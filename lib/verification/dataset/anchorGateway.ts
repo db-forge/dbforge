@@ -1,17 +1,19 @@
 // Owner: Developer 3 (app/api, lib/verification, lib/supabase, supabase/)
 //
-// Dataset anchor gateway boundary (M5 Part L). Same pattern as
-// lib/verification/settlement/gateway.ts — lib/monad doesn't exist yet,
-// so nothing here imports it. Wire in the real adapter later:
+// Dataset anchor gateway — wired to the real lib/monad
+// SettlementAdapter.anchorDataset (confirmed shape from
+// origin/feat/contracts's lib/monad/adapter.ts at integration time). Note
+// the real input field is `manifestHash`, not `metadataHash` — mapped here
+// so the rest of this codebase can keep its own naming.
 //
-//   import { anchorDataset } from "@/lib/monad/dataset";
-//   export function getDatasetAnchorGateway(): DatasetAnchorGateway {
-//     return { anchorDataset };
-//   }
-//
-// Until then this always throws a typed "unavailable" error — the anchor
-// endpoint turns that into 503 DATASET_ANCHOR_GATEWAY_UNAVAILABLE. No fake
-// production implementation, no invented tx hashes.
+// Per lib/monad/README.md's "Dataset anchor flow": the buyer calls
+// ProvenanceRegistry.finalizeDataset from their OWN wallet after reviewing
+// the root — this backend never calls finalizeDataset, only anchorDataset
+// (which is idempotent: the same root/count/hash already on chain succeeds
+// with no new tx).
+
+import { isMonadSettlementError, type MonadErrorCode } from "@/lib/monad";
+import { getMonadSettlementAdapter } from "../monadAdapter";
 
 export interface DatasetAnchorGatewayInput {
   chainMissionId: string;
@@ -21,7 +23,9 @@ export interface DatasetAnchorGatewayInput {
 }
 
 export interface DatasetAnchorGatewayResult {
-  txHash: string;
+  // null only when the chain already holds this anchor but its
+  // DatasetAnchored log is outside the scanned block range.
+  txHash: string | null;
 }
 
 export type DatasetAnchorGatewayErrorKind = "unavailable" | "rejected" | "timeout" | "unknown";
@@ -48,11 +52,40 @@ export function __setDatasetAnchorGatewayForTests(gateway: DatasetAnchorGateway 
   testOverride = gateway;
 }
 
-export function getDatasetAnchorGateway(): DatasetAnchorGateway {
-  if (testOverride) return testOverride;
+function mapErrorKind(code: MonadErrorCode): DatasetAnchorGatewayErrorKind {
+  switch (code) {
+    case "TX_TIMEOUT":
+      return "timeout";
+    case "RPC_ERROR":
+      return "unavailable";
+    default:
+      return "rejected";
+  }
+}
 
-  throw new DatasetAnchorGatewayError(
-    "No dataset anchor gateway is configured yet — the Monad adapter (lib/monad) has not been wired in.",
-    "unavailable",
-  );
+const realGateway: DatasetAnchorGateway = {
+  async anchorDataset(input) {
+    try {
+      const result = await getMonadSettlementAdapter().anchorDataset({
+        chainMissionId: input.chainMissionId,
+        merkleRoot: input.merkleRoot,
+        sampleCount: input.sampleCount,
+        manifestHash: input.metadataHash,
+      });
+      return { txHash: result.txHash };
+    } catch (error) {
+      if (isMonadSettlementError(error)) {
+        throw new DatasetAnchorGatewayError(error.message, mapErrorKind(error.code), error);
+      }
+      throw new DatasetAnchorGatewayError(
+        "Unexpected error calling the dataset anchor adapter.",
+        "unknown",
+        error,
+      );
+    }
+  },
+};
+
+export function getDatasetAnchorGateway(): DatasetAnchorGateway {
+  return testOverride ?? realGateway;
 }

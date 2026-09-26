@@ -12,9 +12,11 @@ export interface SettlementGatewayInput {
 }
 
 export interface SettlementGatewayResult {
-  txHash: string;
+  // null only when the chain shows the settlement but its Settled log is
+  // outside the scanned block range (real lib/monad SettleSubmissionResult
+  // shape — no separate blockNumber is available from this call).
+  txHash: string | null;
   amountWei: string;
-  blockNumber: string;
 }
 
 export type SettlementGatewayErrorKind = "unavailable" | "rejected" | "timeout" | "unknown";

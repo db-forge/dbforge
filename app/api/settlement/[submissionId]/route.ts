@@ -110,7 +110,9 @@ export async function POST(_request: Request, { params }: RouteParams) {
       gatewayResult = await gateway.settleSubmission({
         chainMissionId: eligibility.chainMissionId,
         contributorAddress: submission.contributor_address,
-        submissionHash: eligibility.submissionHash,
+        // media_hash is stored as bare 64 hex (no 0x prefix, see M1) —
+        // lib/monad requires 0x-prefixed submissionHash.
+        submissionHash: `0x${eligibility.submissionHash}`,
       });
     } catch (error) {
       const errorCode =
@@ -127,15 +129,17 @@ export async function POST(_request: Request, { params }: RouteParams) {
         submissionId,
         txHash: gatewayResult.txHash,
         amountWei: gatewayResult.amountWei,
-        blockNumber: gatewayResult.blockNumber,
+        // Real SettleSubmissionResult has no separate blockNumber — only
+        // txHash + amount. block_number stays null for chain-settled rows.
+        blockNumber: null,
       });
     } catch (error) {
       // The gateway call already succeeded here — funds likely moved
       // on-chain but we failed to record it. Never swallow this quietly.
       console.error(
         `CRITICAL: settlement gateway succeeded for submission ${submissionId} ` +
-          `(txHash=${gatewayResult.txHash}, amountWei=${gatewayResult.amountWei}, ` +
-          `blockNumber=${gatewayResult.blockNumber}) but finalize_settlement_confirmed failed:`,
+          `(txHash=${gatewayResult.txHash}, amountWei=${gatewayResult.amountWei}) ` +
+          "but finalize_settlement_confirmed failed:",
         error,
       );
       throw ApiError.settlementInconsistentState(

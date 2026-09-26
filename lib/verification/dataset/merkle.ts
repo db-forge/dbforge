@@ -1,24 +1,21 @@
 // Owner: Developer 3 (app/api, lib/verification, lib/supabase, supabase/)
 //
-// TEST-ONLY. Leaf hashing + Merkle root computation, kept around purely to
-// exercise/demonstrate the determinism properties (same sample set in a
-// different order -> identical root; one sample changes -> root changes)
-// without a live lib/monad/merkle.ts to call.
+// TEST-ONLY / HISTORICAL. Leaf hashing + Merkle root computation over this
+// codebase's own "canonical sample" object (mediaHash + contributor +
+// settlementTxHash + semanticScore).
 //
-// Per the integration correction: this must NEVER be used for a real
-// anchor-bound dataset build. The production path
-// (lib/verification/dataset/merkleProvider.ts's getMerkleTreeProvider)
-// fails closed until lib/monad/merkle.ts is wired in — it does not fall
-// back to this module. The only way this file's algorithm reaches a real
-// request is if something explicitly calls
-// registerFallbackMerkleProviderForTests() below, which a route handler
-// never does.
-//
-// lib/monad/merkle.ts (the blockchain developer's Merkle helper) does not
-// exist yet in this repository. This module is a real, documented
-// implementation — not a stub — built on keccak256 (via viem, already a
-// project dependency) since that's the one thing any EVM-side Merkle
-// verifier will need regardless of tree-construction convention.
+// SUPERSEDED at integration time: the real on-chain-verifiable dataset
+// tree (lib/verification/dataset/merkleProvider.ts, wired to
+// lib/monad.buildDatasetTree) is built ENTIRELY from the Vault's `Settled`
+// event logs with single-value leaves (just the submissionHash, OpenZeppelin
+// StandardMerkleTree-compatible) — a fundamentally different leaf shape
+// than this module's, not just a different hash algorithm. This file no
+// longer wires into getMerkleTreeProvider() at all (their interfaces no
+// longer match) and must never be used for a real anchor-bound build.
+// Kept only for its still-valid determinism demonstration (same sample set
+// in a different order -> identical root; one sample changes -> root
+// changes) and in case a future *off-chain-only* audit root is wanted
+// alongside the on-chain one.
 //
 // Algorithm ("merkle-fallback-sorted-pair-keccak256-v1"):
 //   - leaf hash  = keccak256(utf8 bytes of the canonical sample string)
@@ -40,9 +37,7 @@
 
 import { concat, keccak256, toBytes } from "viem";
 import { serializeCanonicalSample } from "./canonical";
-import { __setMerkleProviderForTests } from "./merkleProvider";
 import type { CanonicalSample } from "./canonical";
-import type { MerkleTreeProvider } from "./merkleProvider";
 
 export const MERKLE_ALGORITHM_VERSION = "merkle-fallback-sorted-pair-keccak256-v1";
 export const LEAF_HASH_ALGORITHM = "keccak256(utf8 bytes of serializeCanonicalSample(sample))";
@@ -83,20 +78,4 @@ export function computeMerkleRoot(leafHashes: readonly `0x${string}`[]): `0x${st
   }
 
   return level[0];
-}
-
-const FALLBACK_PROVIDER: MerkleTreeProvider = {
-  hashLeaf: hashCanonicalSample,
-  computeRoot: computeMerkleRoot,
-};
-
-/**
- * The ONE sanctioned caller of this test-only fallback: a test/demo script
- * that explicitly opts in, never a production route handler. Always pair
- * with `registerFallbackMerkleProviderForTests(false)` (or restart the
- * process) afterward so a later real request can't accidentally observe
- * the override.
- */
-export function registerFallbackMerkleProviderForTests(enabled: boolean): void {
-  __setMerkleProviderForTests(enabled ? FALLBACK_PROVIDER : null);
 }

@@ -147,7 +147,9 @@ export async function markDatasetManifestAnchoring(
 
 export async function markDatasetManifestAnchored(
   id: string,
-  anchorTxHash: string,
+  // null only when the chain already holds this anchor but its
+  // DatasetAnchored log is outside the scanned block range.
+  anchorTxHash: string | null,
 ): Promise<DatasetManifestRow | null> {
   const supabase = getSupabaseServiceClient();
 

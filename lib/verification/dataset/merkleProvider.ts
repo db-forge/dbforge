@@ -1,37 +1,44 @@
 // Owner: Developer 3 (app/api, lib/verification, lib/supabase, supabase/)
 //
-// Production Merkle provider boundary — FAILS CLOSED.
+// Production Merkle provider — wired to the real lib/monad.buildDatasetTree
+// (confirmed shape from origin/feat/contracts's lib/monad/merkle.ts at
+// integration time, NOT the shape assumed in earlier milestones).
 //
-// lib/verification/dataset/merkle.ts holds a real, tested, but PROVISIONAL
-// hashing/tree algorithm (documented there as "fallback-sorted-pair-
-// keccak256-v1"). Per the integration correction: that fallback must
-// never be used for a real anchor-bound dataset build, because if its
-// convention doesn't byte-for-byte match lib/monad/merkle.ts (which does
-// not exist in this repo yet) and whatever the deployed contract expects,
-// an anchored root would be unverifiable on-chain — worse than refusing
-// to build at all.
+// This is a real architectural correction, not just a hash-algorithm swap:
+// the on-chain-verifiable dataset tree is built ENTIRELY from the Vault's
+// `Settled` event logs (leaf = keccak256(keccak256(abi.encode(submissionHash))),
+// OpenZeppelin StandardMerkleTree-compatible, sorted pairs) — never from our
+// own DB query or our own richer "canonical sample" object (mediaHash +
+// contributor + settlementTxHash + semanticScore) used in
+// lib/verification/dataset/canonical.ts/merkle.ts. That module is now
+// explicitly test-only (see its own doc comment) — a root computed from
+// our richer leaves would not match what ProvenanceRegistry.verifySample
+// can check on chain.
 //
-// So: the real dataset-build endpoint calls getMerkleTreeProvider(), which
-// throws (fails closed) until the real implementation is wired in. Once
-// lib/monad/merkle.ts exists, wire it in with a plain static import:
-//
-//   import { hashLeaf, computeRoot } from "@/lib/monad/merkle";
-//   export function getMerkleTreeProvider(): MerkleTreeProvider {
-//     return { hashLeaf, computeRoot };
-//   }
-//
-// The only other way to get a non-throwing provider is explicit test
-// injection (see registerFallbackMerkleProviderForTests in merkle.ts) —
-// never reachable from a real request.
+// Read-only (no signing key needed), so this calls lib/monad directly —
+// no dependency on the SettlementAdapter/store.
 
-import type { CanonicalSample } from "./canonical";
+import { buildDatasetTree, isMonadSettlementError, type MonadErrorCode } from "@/lib/monad";
 
-export interface MerkleTreeProvider {
-  hashLeaf(sample: CanonicalSample): `0x${string}`;
-  computeRoot(leafHashes: readonly `0x${string}`[]): `0x${string}`;
+export interface DatasetTreeEntry {
+  submissionHash: string;
+  contributor: string;
+  amountWei: string;
+  txHash: string;
+  blockNumber: string;
 }
 
-export type MerkleProviderErrorKind = "unavailable";
+export interface DatasetTreeResult {
+  root: string;
+  sampleCount: number;
+  entries: DatasetTreeEntry[];
+}
+
+export interface MerkleTreeProvider {
+  buildDatasetTree(input: { chainMissionId: string }): Promise<DatasetTreeResult>;
+}
+
+export type MerkleProviderErrorKind = "unavailable" | "invalid" | "unknown";
 
 export class MerkleProviderError extends Error {
   constructor(
@@ -55,12 +62,36 @@ export function __setMerkleProviderForTests(provider: MerkleTreeProvider | null)
   testOverride = provider;
 }
 
-export function getMerkleTreeProvider(): MerkleTreeProvider {
-  if (testOverride) return testOverride;
+function mapErrorKind(code: MonadErrorCode): MerkleProviderErrorKind {
+  if (code === "RPC_ERROR") return "unavailable";
+  if (code === "MISSION_NOT_FOUND" || code === "INVALID_INPUT") return "invalid";
+  return "unknown";
+}
 
-  throw new MerkleProviderError(
-    "No production Merkle provider is configured — lib/monad/merkle.ts has not been wired in. " +
-      "Refusing to compute an anchor-bound Merkle root with an unverified algorithm.",
-    "unavailable",
-  );
+const realProvider: MerkleTreeProvider = {
+  async buildDatasetTree({ chainMissionId }) {
+    try {
+      const tree = await buildDatasetTree({ chainMissionId });
+      return {
+        root: tree.root,
+        sampleCount: tree.hashes.length,
+        entries: tree.entries.map((e) => ({
+          submissionHash: e.submissionHash,
+          contributor: e.contributor,
+          amountWei: e.amount,
+          txHash: e.txHash,
+          blockNumber: e.blockNumber,
+        })),
+      };
+    } catch (error) {
+      if (isMonadSettlementError(error)) {
+        throw new MerkleProviderError(error.message, mapErrorKind(error.code), error);
+      }
+      throw new MerkleProviderError("Unexpected error building the dataset Merkle tree.", "unknown", error);
+    }
+  },
+};
+
+export function getMerkleTreeProvider(): MerkleTreeProvider {
+  return testOverride ?? realProvider;
 }

@@ -87,9 +87,11 @@ export async function claimSettlementForBroadcast(
 
 export interface FinalizeSettlementInput {
   submissionId: string;
-  txHash: string;
+  // The real SettleSubmissionResult's txHash is null only when the chain
+  // shows the settlement but its Settled log is outside the scanned range.
+  txHash: string | null;
   amountWei: string;
-  blockNumber: string;
+  blockNumber: string | null;
 }
 
 /**
