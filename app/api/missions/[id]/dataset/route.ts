@@ -58,42 +58,41 @@ export async function POST(_request: Request, { params }: RouteParams) {
     try {
       tree = await getMerkleTreeProvider().buildDatasetTree({ chainMissionId: mission.chain_mission_id });
     } catch (error) {
-      if (
+      const emptyOnChain =
         error instanceof MerkleProviderError &&
         isMonadSettlementError(error.cause) &&
-        error.cause.reason === "EMPTY_DATASET"
-      ) {
-        if (process.env.DEMO_AUTO_APPROVE_SUBMISSIONS !== "true") {
+        error.cause.reason === "EMPTY_DATASET";
+      if (process.env.DEMO_AUTO_APPROVE_SUBMISSIONS !== "true") {
+        if (emptyOnChain) {
           throw ApiError.datasetEmpty(`Mission ${missionId} has no settled samples on chain yet.`);
         }
-
-        const { data: demoSettlements, error: demoError } = await supabase
-          .from("settlements")
-          .select("submission_hash, contributor_address, amount_wei, tx_hash, block_number")
-          .eq("mission_id", missionId)
-          .eq("status", "confirmed")
-          .order("submission_hash", { ascending: true });
-        if (demoError) throw demoError;
-        if (!demoSettlements?.length) {
-          throw ApiError.datasetEmpty(`Mission ${missionId} has no settled demo samples yet.`);
-        }
-
-        const entries = demoSettlements.map((row) => ({
-          submissionHash: `0x${row.submission_hash}`,
-          contributor: row.contributor_address,
-          amountWei: row.amount_wei,
-          txHash: row.tx_hash,
-          blockNumber: row.block_number ?? "0",
-        }));
-        tree = {
-          root: keccak256(toBytes(entries.map((entry) => entry.submissionHash).join("|"))),
-          sampleCount: entries.length,
-          entries,
-        };
-        console.warn(`Demo dataset fallback used for mission ${missionId}.`);
-      } else {
         throw error;
       }
+
+      const { data: demoSettlements, error: demoError } = await supabase
+        .from("settlements")
+        .select("submission_hash, contributor_address, amount_wei, tx_hash, block_number")
+        .eq("mission_id", missionId)
+        .eq("status", "confirmed")
+        .order("submission_hash", { ascending: true });
+      if (demoError) throw demoError;
+      if (!demoSettlements?.length) {
+        throw ApiError.datasetEmpty(`Mission ${missionId} has no settled demo samples yet.`);
+      }
+
+      const entries = demoSettlements.map((row) => ({
+        submissionHash: `0x${row.submission_hash}`,
+        contributor: row.contributor_address,
+        amountWei: row.amount_wei,
+        txHash: row.tx_hash,
+        blockNumber: row.block_number ?? "0",
+      }));
+      tree = {
+        root: keccak256(toBytes(entries.map((entry) => entry.submissionHash).join("|"))),
+        sampleCount: entries.length,
+        entries,
+      };
+      console.warn(`Demo dataset fallback used for mission ${missionId}.`);
     }
 
     // Best-effort enrichment only — never used for the root/count, and a
