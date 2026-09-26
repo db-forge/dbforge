@@ -67,3 +67,72 @@ export async function getMissionById(id: string): Promise<MissionRow | null> {
 
   return (data as MissionRow | null) ?? null;
 }
+
+export async function getMissionByChainMissionId(chainMissionId: string): Promise<MissionRow | null> {
+  const supabase = getSupabaseServiceClient();
+
+  const { data, error } = await supabase
+    .from("missions")
+    .select(MISSION_COLUMNS)
+    .eq("chain_mission_id", chainMissionId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to fetch mission by chain_mission_id ${chainMissionId}: ${error.message}`);
+  }
+
+  return (data as MissionRow | null) ?? null;
+}
+
+export interface CreateMissionFromChainEventInput {
+  chainMissionId: string;
+  buyerAddress: string;
+  rewardMon: string;
+  targetCount: number;
+  title: string;
+  description: string;
+}
+
+/**
+ * Creates a mission row from a VERIFIED on-chain mission-creation event
+ * (see lib/verification/mission/eventReader.ts) — chainMissionId,
+ * buyerAddress, rewardMon (derived from the event's wei amount) and
+ * targetCount all come from that verified event, never from client input.
+ * Only title/description (which the chain event doesn't carry) are
+ * client-supplied.
+ *
+ * Idempotent on chain_mission_id (unique in migration 0001): re-submitting
+ * the same already-indexed txHash returns the existing row instead of
+ * erroring.
+ */
+export async function createMissionFromChainEvent(
+  input: CreateMissionFromChainEventInput,
+): Promise<{ mission: MissionRow; created: boolean }> {
+  const supabase = getSupabaseServiceClient();
+
+  const { data, error } = await supabase
+    .from("missions")
+    .insert({
+      chain_mission_id: input.chainMissionId,
+      buyer_address: input.buyerAddress,
+      title: input.title,
+      description: input.description,
+      reward_mon: input.rewardMon,
+      target_count: input.targetCount,
+      status: "active",
+    })
+    .select(MISSION_COLUMNS)
+    .single();
+
+  if (error) {
+    if (error.code === "23505") {
+      const existing = await getMissionByChainMissionId(input.chainMissionId);
+      if (existing) {
+        return { mission: existing, created: false };
+      }
+    }
+    throw new Error(`Failed to create mission from chain event: ${error.message}`);
+  }
+
+  return { mission: data as MissionRow, created: true };
+}

@@ -5,6 +5,15 @@
 // dataset anchor gateway. Never anchors a manifest that isn't 'ready', and
 // once a manifest is 'anchored' it is never mutated again (a rebuild
 // creates a new version instead — see the build endpoint).
+//
+// Integration correction: buyer approval (finalizeDataset(missionId,
+// expectedRoot)) happens on-chain from the FRONTEND, with the buyer's own
+// wallet — this backend never calls finalizeDataset. The frontend may
+// optionally echo back the root the buyer just approved as `expectedRoot`
+// in the request body; if present, it's validated against our own
+// persisted root and rejected on any mismatch (e.g. the dataset was
+// rebuilt with new samples between approval and this call) — the
+// anchor call itself always uses OUR persisted root, never a client value.
 
 import { NextResponse } from "next/server";
 import { ApiError, withApiErrorHandling } from "@/app/api/_lib/errors";
@@ -23,10 +32,42 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-export async function POST(_request: Request, { params }: RouteParams) {
+/**
+ * The request body is entirely optional here (the original contract took
+ * none at all) — only `expectedRoot` is ever read from it, purely as an
+ * optional cross-check against our own persisted root, never as the value
+ * that gets anchored.
+ */
+async function parseOptionalAnchorBody(request: Request): Promise<{ expectedRoot?: string }> {
+  const text = await request.text();
+  if (!text || text.trim().length === 0) return {};
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw ApiError.validation("Request body must be valid JSON when provided.");
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    throw ApiError.validation("Request body must be a JSON object when provided.");
+  }
+
+  const expectedRoot = (parsed as Record<string, unknown>).expectedRoot;
+  if (expectedRoot === undefined) return {};
+  if (typeof expectedRoot !== "string" || expectedRoot.trim().length === 0) {
+    throw ApiError.validation("expectedRoot must be a non-empty string when provided.", {
+      field: "expectedRoot",
+    });
+  }
+  return { expectedRoot };
+}
+
+export async function POST(request: Request, { params }: RouteParams) {
   return withApiErrorHandling(async () => {
     const { id: missionId } = await params;
     assertUuid(missionId, "id");
+
+    const { expectedRoot } = await parseOptionalAnchorBody(request);
 
     const mission = await getMissionById(missionId);
     if (!mission) {
@@ -41,6 +82,14 @@ export async function POST(_request: Request, { params }: RouteParams) {
     const latest = await getLatestDatasetManifest(missionId);
     if (!latest) {
       throw ApiError.datasetNotReady(`No dataset manifest has been built for mission ${missionId} yet.`);
+    }
+
+    if (expectedRoot && expectedRoot.toLowerCase() !== latest.merkle_root.toLowerCase()) {
+      throw ApiError.datasetRootMismatch(
+        "The provided expectedRoot does not match this mission's persisted dataset root — the " +
+          "dataset may have been rebuilt since it was approved. Re-approve the current root before anchoring.",
+        { expectedRoot, persistedRoot: latest.merkle_root },
+      );
     }
 
     if (latest.status === "anchored") {

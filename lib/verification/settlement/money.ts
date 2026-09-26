@@ -65,3 +65,25 @@ export function assertSettleableWeiAmount(wei: bigint): void {
     throw new InvalidRewardAmountError("Reward amount must be greater than zero to settle.");
   }
 }
+
+/**
+ * Inverse of decimalMonToWei — used when a verified on-chain event (wei)
+ * needs to be stored as the decimal string missions.reward_mon expects.
+ * String-only arithmetic throughout; never routes through Number.
+ *
+ *   weiToDecimalMon(100000000000000000n) -> "0.1"
+ *   weiToDecimalMon(1000000000000000000n) -> "1"
+ *   weiToDecimalMon(0n) -> "0"
+ */
+export function weiToDecimalMon(wei: bigint): string {
+  if (wei < BigInt(0)) {
+    throw new InvalidRewardAmountError("Wei amount must not be negative.");
+  }
+
+  const scale = BigInt(10) ** BigInt(MON_DECIMALS);
+  const integerPart = wei / scale;
+  const fractionPart = (wei % scale).toString().padStart(MON_DECIMALS, "0");
+  const trimmedFraction = fractionPart.replace(/0+$/, "");
+
+  return trimmedFraction.length > 0 ? `${integerPart}.${trimmedFraction}` : integerPart.toString();
+}

@@ -20,6 +20,10 @@ import { FfmpegUnavailableError, FrameExtractionError } from "@/lib/verification
 import { SettlementGatewayError } from "@/lib/verification/settlement/types";
 import { SettlementStatusGatewayError } from "@/lib/verification/settlement/statusGateway";
 import { DatasetAnchorGatewayError } from "@/lib/verification/dataset/anchorGateway";
+import { MerkleProviderError } from "@/lib/verification/dataset/merkleProvider";
+import { MissionEventReaderError } from "@/lib/verification/mission/eventReader";
+import { WithdrawalGatewayError } from "@/lib/verification/withdrawal/gateway";
+import { RateLimitedError } from "@/lib/supabase/rateLimit";
 
 export type ApiErrorCode =
   | "VALIDATION_ERROR"
@@ -68,7 +72,17 @@ export type ApiErrorCode =
   | "DATASET_ANCHOR_IN_PROGRESS"
   | "DATASET_ANCHOR_GATEWAY_UNAVAILABLE"
   | "DATASET_ANCHOR_FAILED"
-  | "DATASET_IMMUTABLE";
+  | "DATASET_IMMUTABLE"
+  | "DATASET_ROOT_MISMATCH"
+  | "DATASET_MERKLE_PROVIDER_UNAVAILABLE"
+  // Integration correction: POST /api/missions
+  | "MISSION_EVENT_READER_UNAVAILABLE"
+  | "MISSION_EVENT_NOT_FOUND"
+  | "MISSION_EVENT_INVALID"
+  // Integration correction: POST /api/contributors/[address]/withdraw
+  | "WITHDRAWAL_RATE_LIMITED"
+  | "WITHDRAWAL_GATEWAY_UNAVAILABLE"
+  | "WITHDRAWAL_FAILED";
 
 export class ApiError extends Error {
   readonly status: number;
@@ -238,6 +252,38 @@ export class ApiError extends Error {
   static datasetImmutable(message: string): ApiError {
     return new ApiError(409, "DATASET_IMMUTABLE", message);
   }
+
+  static datasetRootMismatch(message: string, details?: unknown): ApiError {
+    return new ApiError(409, "DATASET_ROOT_MISMATCH", message, details);
+  }
+
+  static datasetMerkleProviderUnavailable(message: string): ApiError {
+    return new ApiError(503, "DATASET_MERKLE_PROVIDER_UNAVAILABLE", message);
+  }
+
+  static missionEventReaderUnavailable(message: string): ApiError {
+    return new ApiError(503, "MISSION_EVENT_READER_UNAVAILABLE", message);
+  }
+
+  static missionEventNotFound(message: string): ApiError {
+    return new ApiError(404, "MISSION_EVENT_NOT_FOUND", message);
+  }
+
+  static missionEventInvalid(message: string): ApiError {
+    return new ApiError(400, "MISSION_EVENT_INVALID", message);
+  }
+
+  static withdrawalRateLimited(message: string, retryAfterSeconds: number): ApiError {
+    return new ApiError(429, "WITHDRAWAL_RATE_LIMITED", message, { retryAfterSeconds });
+  }
+
+  static withdrawalGatewayUnavailable(message: string): ApiError {
+    return new ApiError(503, "WITHDRAWAL_GATEWAY_UNAVAILABLE", message);
+  }
+
+  static withdrawalFailed(message: string): ApiError {
+    return new ApiError(502, "WITHDRAWAL_FAILED", message);
+  }
 }
 
 export function apiErrorResponse(error: ApiError): NextResponse {
@@ -342,6 +388,61 @@ export function withApiErrorHandling(
         ApiError.datasetAnchorFailed(
           "The dataset anchor gateway reported a failure. No anchor transaction was completed.",
         ),
+      );
+    }
+
+    if (error instanceof MerkleProviderError) {
+      console.error(`Merkle provider error (${error.kind}):`, error.cause ?? error);
+      return apiErrorResponse(
+        ApiError.datasetMerkleProviderUnavailable(
+          "No production-verified Merkle implementation (lib/monad/merkle.ts) is wired in yet. " +
+            "Refusing to compute a dataset root with an unverified algorithm.",
+        ),
+      );
+    }
+
+    if (error instanceof MissionEventReaderError) {
+      console.error(`Mission event reader error (${error.kind}):`, error.cause ?? error);
+      if (error.kind === "unavailable") {
+        return apiErrorResponse(
+          ApiError.missionEventReaderUnavailable(
+            "The on-chain mission-event reader is not currently available. The mission was not created.",
+          ),
+        );
+      }
+      if (error.kind === "not_found") {
+        return apiErrorResponse(
+          ApiError.missionEventNotFound(
+            "No mission-creation event was found for the given transaction hash.",
+          ),
+        );
+      }
+      return apiErrorResponse(
+        ApiError.missionEventInvalid(
+          "The transaction hash did not correspond to a valid mission-creation event.",
+        ),
+      );
+    }
+
+    if (error instanceof WithdrawalGatewayError) {
+      console.error(`Withdrawal gateway error (${error.kind}):`, error.cause ?? error);
+      if (error.kind === "unavailable") {
+        return apiErrorResponse(
+          ApiError.withdrawalGatewayUnavailable(
+            "The withdrawal gateway is not currently available. No withdrawal was attempted.",
+          ),
+        );
+      }
+      return apiErrorResponse(
+        ApiError.withdrawalFailed(
+          "The withdrawal gateway reported a failure. No funds were transferred.",
+        ),
+      );
+    }
+
+    if (error instanceof RateLimitedError) {
+      return apiErrorResponse(
+        ApiError.withdrawalRateLimited(error.message, error.retryAfterSeconds),
       );
     }
 

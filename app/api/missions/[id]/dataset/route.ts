@@ -22,7 +22,7 @@ import {
   updateDraftDatasetManifest,
 } from "@/lib/supabase/datasetManifests";
 import { SAMPLE_CANONICAL_VERSION, canonicalizeSample } from "@/lib/verification/dataset/canonical";
-import { computeMerkleRoot, hashCanonicalSample } from "@/lib/verification/dataset/merkle";
+import { getMerkleTreeProvider } from "@/lib/verification/dataset/merkleProvider";
 import { buildDatasetManifest } from "@/lib/verification/dataset/manifest";
 import { computeMetadataHash } from "@/lib/verification/dataset/metadata";
 
@@ -53,11 +53,15 @@ export async function POST(_request: Request, { params }: RouteParams) {
     }
 
     // Canonical-v1 ordering already enforced by listEligibleDatasetSamples;
-    // canonicalizeSample/hashCanonicalSample are pure maps that preserve
-    // array order, so leaf order here is exactly that ordering.
+    // canonicalizeSample/hashLeaf are pure maps that preserve array order,
+    // so leaf order here is exactly that ordering. getMerkleTreeProvider()
+    // fails closed (throws) until lib/monad/merkle.ts is wired in — see
+    // lib/verification/dataset/merkleProvider.ts. Never falls back to the
+    // test-only algorithm in lib/verification/dataset/merkle.ts.
+    const merkleProvider = getMerkleTreeProvider();
     const canonicalSamples = eligibleSamples.map((s) => canonicalizeSample(s));
-    const leafHashes = canonicalSamples.map(hashCanonicalSample);
-    const merkleRoot = computeMerkleRoot(leafHashes);
+    const leafHashes = canonicalSamples.map((s) => merkleProvider.hashLeaf(s));
+    const merkleRoot = merkleProvider.computeRoot(leafHashes);
 
     const metadataHash = computeMetadataHash({
       missionId,
