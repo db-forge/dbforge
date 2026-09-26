@@ -1,22 +1,22 @@
 "use client";
 
-import { Camera, CameraOff, FolderOpen, Loader2, RotateCcw, Send, SwitchCamera, Video } from "lucide-react";
+import { CameraOff, FolderOpen, Loader2, RotateCcw, Send, SwitchCamera, Video, X } from "lucide-react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MonAmount } from "@/components/MonAmount";
-import { AppShell } from "@/components/shell/AppShell";
 import { useToast } from "@/components/Toaster";
 import { Button } from "@/components/ui/button";
-import { Card, MonoLabel } from "@/components/ui/card";
 import { getMission, uploadSubmission } from "@/lib/frontend/api";
-import { useApi } from "@/lib/frontend/hooks";
-import { cn } from "@/lib/frontend/utils";
+import { useApi, useIsClient } from "@/lib/frontend/hooks";
+import { cn, randomHex } from "@/lib/frontend/utils";
 import { DEMO_VIDEOS } from "@/lib/mock/missions";
 
 type Phase = "init" | "denied" | "ready" | "recording" | "preview" | "uploading";
 
 const MIN_SEC = 10;
-const MAX_SEC = 60;
+const MAX_SEC = 20;
+const CHALLENGE_SEC = 5 * 60;
 
 function pickMimeType() {
   if (typeof MediaRecorder === "undefined") return "";
@@ -27,8 +27,24 @@ function pickMimeType() {
 }
 
 function fmt(sec: number) {
-  const s = Math.floor(sec);
+  const s = Math.max(0, Math.floor(sec));
   return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+}
+
+/**
+ * One-time challenge code shown while recording (anti-replay). Mock for now;
+ * later it comes from the verification service with its expiry.
+ */
+function useChallenge() {
+  const [code] = useState(() => randomHex(2).slice(2));
+  const [left, setLeft] = useState(CHALLENGE_SEC);
+  // The code is random; only show it after hydration so SSR and client agree.
+  const mounted = useIsClient();
+  useEffect(() => {
+    const t = setInterval(() => setLeft((l) => Math.max(0, l - 1)), 1000);
+    return () => clearInterval(t);
+  }, []);
+  return { code: mounted ? code : "····", left };
 }
 
 export default function CapturePage() {
@@ -36,6 +52,7 @@ export default function CapturePage() {
   const router = useRouter();
   const toast = useToast();
   const { data: mission } = useApi(() => getMission(id), [id]);
+  const challenge = useChallenge();
 
   const [phase, setPhase] = useState<Phase>("init");
   const [facing, setFacing] = useState<"environment" | "user">("environment");
@@ -44,6 +61,7 @@ export default function CapturePage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [fromPicker, setFromPicker] = useState(false);
   const [loadingDemo, setLoadingDemo] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const liveRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -99,6 +117,7 @@ export default function CapturePage() {
     if (!stream) return;
     if (typeof MediaRecorder === "undefined") {
       toast({ kind: "error", title: "Tarayıcın kayıt desteklemiyor", description: "Hazır video seçebilirsin." });
+      setSheetOpen(true);
       return;
     }
     const mimeType = pickMimeType();
@@ -140,6 +159,7 @@ export default function CapturePage() {
     setPreviewUrl(URL.createObjectURL(f));
     setFromPicker(true);
     setElapsed(0);
+    setSheetOpen(false);
     setPhase("preview");
   }
 
@@ -156,6 +176,7 @@ export default function CapturePage() {
   }
 
   function retake() {
+    if (phase === "recording") stopRecording();
     setFile(null);
     setPreviewUrl(null);
     setElapsed(0);
@@ -180,84 +201,91 @@ export default function CapturePage() {
     }
   }
 
-  const tooShort = !fromPicker && elapsed < MIN_SEC;
   const denied = phase === "denied";
-  const minPct = Math.min(100, (elapsed / MIN_SEC) * 100);
+  const live = phase === "ready" || phase === "recording";
+  const reviewing = phase === "preview" || phase === "uploading";
+  const tooShort = !fromPicker && elapsed < MIN_SEC;
+  const pct = Math.min(100, (elapsed / MAX_SEC) * 100);
+  const hint = mission?.criteria.at(-1) ?? "Nesneyi ve elini kadrajda tut";
 
-  const picker = (
-    <Card className={cn("p-4", denied && "border-primary")}>
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="font-bold">Hazır video seç</p>
-          <p className="text-sm text-ink/65">Galeriden veya örnek videolardan birini gönder.</p>
-        </div>
-        <Button variant={denied ? "primary" : "outline"} onClick={() => fileInputRef.current?.click()}>
-          <FolderOpen className="size-4" /> Dosya seç
-        </Button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="video/*"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) applyFile(f);
-            e.target.value = "";
-          }}
-        />
-      </div>
-      <MonoLabel className="mt-4 block">Örnek videolar</MonoLabel>
-      <div className="mt-2 flex flex-wrap gap-2">
+  const fileInput = (
+    <input
+      ref={fileInputRef}
+      type="file"
+      accept="video/*"
+      className="hidden"
+      onChange={(e) => {
+        const f = e.target.files?.[0];
+        if (f) applyFile(f);
+        e.target.value = "";
+      }}
+    />
+  );
+
+  const demoList = (
+    <div className="space-y-2">
+      <Button className="w-full" size="lg" onClick={() => fileInputRef.current?.click()}>
+        <FolderOpen className="size-5" /> Galeriden video seç
+      </Button>
+      <p className="pt-2 font-mono text-[11px] tracking-wider text-ink/60 uppercase">Örnek videolar</p>
+      <div className="grid grid-cols-2 gap-2">
         {DEMO_VIDEOS.map((v) => (
           <button
             key={v.name}
             onClick={() => pickDemo(v.name, v.url)}
-            disabled={!!loadingDemo || phase === "uploading"}
-            className="inline-flex h-8 items-center gap-1.5 rounded-full border-[1.5px] border-sky bg-white px-3 text-xs font-medium hover:border-primary disabled:opacity-50"
+            disabled={!!loadingDemo}
+            className="inline-flex h-10 items-center gap-2 rounded-xl border-[1.5px] border-ink bg-white px-3 text-left text-sm hover:bg-ice disabled:opacity-50"
           >
-            {loadingDemo === v.name ? <Loader2 className="size-3 animate-spin" /> : <Video className="size-3" />}
-            {v.label}
+            {loadingDemo === v.name ? (
+              <Loader2 className="size-4 shrink-0 animate-spin" />
+            ) : (
+              <Video className="size-4 shrink-0" />
+            )}
+            <span className="truncate">{v.label}</span>
           </button>
         ))}
       </div>
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 pt-1">
         <button
           onClick={() => pickDemo("fail-bottle-drop.mp4", "/demo/bottle-drop.mp4")}
           disabled={!!loadingDemo}
-          className="h-7 rounded-full border border-dashed border-danger/50 px-2.5 font-mono text-[10px] text-danger hover:bg-red-50"
+          className="h-7 rounded-full border border-dashed border-danger/60 px-2.5 font-mono text-[10px] text-danger hover:bg-red-50"
         >
           demo: red senaryosu
         </button>
         <button
           onClick={() => pickDemo("review-bottle-drop.mp4", "/demo/bottle-drop.mp4")}
           disabled={!!loadingDemo}
-          className="h-7 rounded-full border border-dashed border-warning/50 px-2.5 font-mono text-[10px] text-warning hover:bg-amber-50"
+          className="h-7 rounded-full border border-dashed border-warning/60 px-2.5 font-mono text-[10px] text-warning hover:bg-amber-50"
         >
           demo: inceleme senaryosu
         </button>
       </div>
-    </Card>
+    </div>
   );
 
   return (
-    <AppShell title="Video kaydı" backHref={`/mission/${id}`}>
-      <div className="space-y-4">
+    <div className="fixed inset-0 z-40 bg-ink text-white">
+      <div className="mx-auto flex h-full max-w-[480px] flex-col px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        {/* Top bar */}
+        <div className="flex h-10 items-center justify-between gap-3">
+          <Link href={`/mission/${id}`} className="inline-flex items-center gap-1.5 text-sm font-medium">
+            <X className="size-5" /> İptal
+          </Link>
+          <span className="inline-flex h-8 items-center rounded-full border-[1.5px] border-white/80 px-3 font-mono text-xs">
+            challenge {challenge.code} · {fmt(challenge.left)}
+          </span>
+        </div>
+
         {mission && (
-          <div className="flex items-center justify-between gap-3 rounded-2xl border-[1.5px] border-sky bg-white px-4 py-3">
-            <div className="min-w-0">
-              <p className="truncate font-bold">{mission.title}</p>
-              <p className="font-mono text-xs text-ink/60">
-                {mission.myUploads}/{mission.perUserLimit} yüklendi · min {MIN_SEC} sn
-              </p>
-            </div>
-            <MonAmount value={mission.rewardMon} size="md" className="shrink-0" />
+          <div className="mt-2 flex items-center justify-between gap-3 text-sm">
+            <span className="truncate text-white/80">{mission.title}</span>
+            <MonAmount value={mission.rewardMon} size="sm" className="shrink-0 text-sky" />
           </div>
         )}
 
-        {denied && picker}
-
-        {/* Viewport */}
-        <div className="relative mx-auto aspect-[3/4] max-h-[68dvh] w-full overflow-hidden rounded-2xl border-[1.5px] border-ink bg-ink">
+        {/* Viewfinder */}
+        <div className="relative mt-3 min-h-0 flex-1 overflow-hidden rounded-2xl border-[1.5px] border-dashed border-white/50">
           <video
             ref={liveRef}
             muted
@@ -265,10 +293,10 @@ export default function CapturePage() {
             className={cn(
               "absolute inset-0 size-full object-cover",
               facing === "user" && "-scale-x-100",
-              (phase === "preview" || phase === "uploading" || denied) && "invisible",
+              (reviewing || denied) && "invisible",
             )}
           />
-          {(phase === "preview" || phase === "uploading") && previewUrl && (
+          {reviewing && previewUrl && (
             <video
               key={previewUrl}
               src={previewUrl}
@@ -282,134 +310,178 @@ export default function CapturePage() {
           )}
 
           {phase === "init" && (
-            <div className="absolute inset-0 grid place-items-center text-white/80">
-              <div className="flex flex-col items-center gap-2 text-sm">
+            <div className="absolute inset-0 grid place-items-center">
+              <div className="flex flex-col items-center gap-2 text-sm text-white/80">
                 <Loader2 className="size-6 animate-spin" /> Kamera açılıyor…
               </div>
             </div>
           )}
 
           {denied && (
-            <div className="absolute inset-0 grid place-items-center p-6 text-center text-white">
-              <div className="flex flex-col items-center gap-3">
-                <CameraOff className="size-8 text-sky" />
-                <p className="font-bold">Kamera izni yok</p>
-                <p className="max-w-60 text-sm text-white/70">
-                  Tarayıcı ayarlarından kamera izni ver veya yukarıdan hazır bir video seç.
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setPhase("init");
-                    startCamera();
-                  }}
-                >
-                  <Camera className="size-4" /> Tekrar dene
-                </Button>
+            <div className="absolute inset-0 overflow-y-auto bg-ice p-4 text-ink">
+              <div className="flex items-center gap-3">
+                <span className="grid size-10 shrink-0 place-items-center rounded-full border-[1.5px] border-ink bg-white">
+                  <CameraOff className="size-5 text-primary" />
+                </span>
+                <div>
+                  <p className="font-bold">Kamera izni yok</p>
+                  <p className="text-sm text-ink/70">Hazır bir video seçerek devam edebilirsin.</p>
+                </div>
               </div>
+              <div className="mt-4">{demoList}</div>
+              <button
+                onClick={() => {
+                  setPhase("init");
+                  startCamera();
+                }}
+                className="mt-4 w-full text-center text-sm font-bold text-primary underline underline-offset-2"
+              >
+                Kamerayı tekrar dene
+              </button>
             </div>
           )}
 
-          {/* Top overlay: timer + min bar */}
-          {(phase === "ready" || phase === "recording") && (
-            <div className="absolute inset-x-0 top-0 p-3">
-              <div className="flex items-center justify-between">
+          {live && (
+            <>
+              <div className="absolute inset-x-0 top-3 flex justify-center">
                 <span
                   className={cn(
-                    "inline-flex items-center gap-2 rounded-full px-3 py-1 font-mono text-sm font-bold tabular-nums",
+                    "inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 font-mono text-sm font-bold tabular-nums",
                     phase === "recording" ? "bg-danger text-white" : "bg-white/90 text-ink",
                   )}
                 >
-                  {phase === "recording" && <span className="size-2 animate-pulse rounded-full bg-white" />}
+                  <span className={cn("size-2 rounded-full", phase === "recording" ? "animate-pulse bg-white" : "bg-danger")} />
                   {fmt(elapsed)}
                 </span>
-                {phase === "ready" && (
-                  <button
-                    onClick={() => {
-                      setPhase("init");
-                      setFacing((f) => (f === "user" ? "environment" : "user"));
-                    }}
-                    aria-label="Kamerayı çevir"
-                    className="grid size-9 place-items-center rounded-full bg-white/90 text-ink"
-                  >
-                    <SwitchCamera className="size-4" />
-                  </button>
-                )}
               </div>
-              <div className="mt-3 rounded-full bg-white/90 p-1">
-                <div className="relative h-2 overflow-hidden rounded-full bg-sky">
-                  <div
-                    className={cn(
-                      "h-full rounded-full transition-[width] duration-100",
-                      minPct >= 100 ? "bg-success" : "bg-primary",
-                    )}
-                    style={{ width: `${minPct}%` }}
-                  />
-                </div>
-              </div>
-              <p className="mt-1 text-center font-mono text-[11px] font-bold text-white [text-shadow:0_1px_2px_rgb(0_0_0/0.6)]">
-                {minPct >= 100 ? "Minimum süre tamam" : `min ${MIN_SEC} sn`}
+              <p className="absolute inset-x-0 bottom-4 px-6 text-center text-base font-bold [text-shadow:0_1px_3px_rgb(0_0_0/0.7)]">
+                {hint}
               </p>
-            </div>
+            </>
           )}
 
-          {/* Record button */}
-          {(phase === "ready" || phase === "recording") && (
-            <div className="absolute inset-x-0 bottom-0 flex justify-center pb-5">
+          {reviewing && !fromPicker && (
+            <span
+              className={cn(
+                "absolute top-3 left-3 rounded-full px-3 py-1 font-mono text-xs font-bold",
+                tooShort ? "bg-danger text-white" : "bg-success text-white",
+              )}
+            >
+              {fmt(elapsed)} {tooShort && `· min ${MIN_SEC} sn`}
+            </span>
+          )}
+        </div>
+
+        {/* Duration track: 0 — min 10 — 20 */}
+        {!denied && (
+          <div className="mt-4">
+            <div className="relative h-1.5 rounded-full bg-white/20">
+              <div
+                className={cn(
+                  "h-full rounded-full transition-[width] duration-100",
+                  elapsed >= MIN_SEC ? "bg-success" : "bg-white",
+                )}
+                style={{ width: `${reviewing && fromPicker ? 100 : pct}%` }}
+              />
+              <span
+                className="absolute -top-1 h-3.5 w-0.5 rounded bg-sky"
+                style={{ left: `${(MIN_SEC / MAX_SEC) * 100}%` }}
+              />
+            </div>
+            <div className="relative mt-1.5 flex justify-between font-mono text-[11px] text-white/70">
+              <span>0 sn</span>
+              <span className="absolute -translate-x-1/2" style={{ left: `${(MIN_SEC / MAX_SEC) * 100}%` }}>
+                min {MIN_SEC} sn
+              </span>
+              <span>{MAX_SEC} sn</span>
+            </div>
+          </div>
+        )}
+
+        {/* Controls */}
+        {reviewing ? (
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <button
+              onClick={retake}
+              disabled={phase === "uploading"}
+              className="inline-flex h-14 items-center justify-center gap-2 rounded-full border-[1.5px] border-white font-bold disabled:opacity-50"
+            >
+              <RotateCcw className="size-4" /> Tekrar çek
+            </button>
+            <Button size="lg" className="h-14 font-bold" onClick={submit} disabled={phase === "uploading" || tooShort}>
+              {phase === "uploading" ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" /> Yükleniyor
+                </>
+              ) : (
+                <>
+                  <Send className="size-4" /> Gönder
+                </>
+              )}
+            </Button>
+          </div>
+        ) : (
+          !denied && (
+            <div className="mt-4 grid grid-cols-3 items-center">
+              <button onClick={retake} disabled={phase !== "recording"} className="justify-self-start text-sm text-white/80 disabled:opacity-40">
+                Tekrar çek
+              </button>
               <button
                 onClick={phase === "recording" ? stopRecording : startRecording}
+                disabled={!live}
                 aria-label={phase === "recording" ? "Kaydı durdur" : "Kaydı başlat"}
-                className="grid size-18 place-items-center rounded-full border-4 border-white bg-white/20"
+                className="grid size-20 place-items-center justify-self-center rounded-full border-4 border-white disabled:opacity-40"
               >
                 <span
                   className={cn(
                     "block bg-danger transition-all",
-                    phase === "recording" ? "size-7 rounded-md" : "size-14 rounded-full",
+                    phase === "recording" ? "size-8 rounded-lg" : "size-15 rounded-full",
                   )}
                 />
               </button>
+              <button
+                onClick={() => {
+                  setPhase("init");
+                  setFacing((f) => (f === "user" ? "environment" : "user"));
+                }}
+                disabled={phase !== "ready"}
+                className="inline-flex items-center gap-1.5 justify-self-end text-sm text-white/80 disabled:opacity-40"
+              >
+                <SwitchCamera className="size-4" /> Çevir
+              </button>
             </div>
-          )}
-        </div>
-
-        {/* Preview actions */}
-        {(phase === "preview" || phase === "uploading") && (
-          <Card className="p-4">
-            <div className="flex items-center justify-between gap-2 text-sm">
-              <span className="truncate font-mono text-xs text-ink/70">{file?.name}</span>
-              {!fromPicker && (
-                <span className={cn("font-mono text-xs font-bold", tooShort ? "text-danger" : "text-success")}>
-                  {fmt(elapsed)}
-                </span>
-              )}
-            </div>
-            {tooShort && (
-              <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-danger">
-                Video en az {MIN_SEC} saniye olmalı. Tekrar çek.
-              </p>
-            )}
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <Button variant="outline" size="lg" onClick={retake} disabled={phase === "uploading"}>
-                <RotateCcw className="size-4" /> Tekrar çek
-              </Button>
-              <Button size="lg" onClick={submit} disabled={phase === "uploading" || tooShort}>
-                {phase === "uploading" ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" /> Yükleniyor
-                  </>
-                ) : (
-                  <>
-                    <Send className="size-4" /> Gönder
-                  </>
-                )}
-              </Button>
-            </div>
-          </Card>
+          )
         )}
 
-        {!denied && phase !== "preview" && phase !== "uploading" && picker}
+        {!denied && !reviewing && (
+          <button
+            onClick={() => setSheetOpen(true)}
+            disabled={phase === "recording"}
+            className="mt-4 inline-flex items-center justify-center gap-2 self-center rounded-full border-[1.5px] border-white/40 px-4 py-2 text-sm hover:border-white disabled:opacity-40"
+          >
+            <FolderOpen className="size-4" /> Hazır video seç
+          </button>
+        )}
       </div>
-    </AppShell>
+
+      {/* Ready-made video sheet */}
+      {sheetOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/60" onClick={() => setSheetOpen(false)}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-[480px] animate-toast-in rounded-t-3xl border-[1.5px] border-b-0 border-ink bg-ice p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-ink"
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <p className="text-lg font-bold">Hazır video seç</p>
+              <button onClick={() => setSheetOpen(false)} aria-label="Kapat" className="grid size-9 place-items-center rounded-full hover:bg-white">
+                <X className="size-5" />
+              </button>
+            </div>
+            {demoList}
+          </div>
+        </div>
+      )}
+      {fileInput}
+    </div>
   );
 }
