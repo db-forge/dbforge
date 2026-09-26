@@ -116,3 +116,22 @@ export async function createSignedSubmissionMediaUrl(
 
   return data.signedUrl;
 }
+
+/**
+ * Fetches the object's raw bytes directly using the service role client —
+ * for server-to-server use (e.g. handing bytes to a vision provider) this
+ * is preferable to minting a signed URL: no token to accidentally log, no
+ * TTL bookkeeping, one fewer network hop.
+ */
+export async function downloadSubmissionMedia(path: string): Promise<Buffer> {
+  const supabase = getSupabaseServiceClient();
+
+  const { data, error } = await supabase.storage.from(SUBMISSIONS_BUCKET).download(path);
+
+  if (error || !data) {
+    throw new StorageError(`Failed to download storage object ${path}`, error);
+  }
+
+  const arrayBuffer = await data.arrayBuffer();
+  return Buffer.from(arrayBuffer);
+}

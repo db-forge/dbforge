@@ -224,3 +224,31 @@ export async function markSubmissionRejected(id: string): Promise<SubmissionRow 
 
   return (data as SubmissionRow | null) ?? null;
 }
+
+/**
+ * M3 non-accept transitions out of AI verification: verifying/manual_review
+ * -> rejected|manual_review. (The accepted path is handled separately by
+ * lib/supabase/acceptance.ts's atomic RPC, since it also has to touch
+ * missions.accepted_count.) A null return means the submission left the
+ * eligible state concurrently — caller re-fetches rather than erroring.
+ */
+export async function markSubmissionAfterAi(
+  id: string,
+  status: "rejected" | "manual_review",
+): Promise<SubmissionRow | null> {
+  const supabase = getSupabaseServiceClient();
+
+  const { data, error } = await supabase
+    .from("submissions")
+    .update({ status })
+    .eq("id", id)
+    .in("status", ["verifying", "manual_review"])
+    .select("*")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to transition submission ${id} to ${status}: ${error.message}`);
+  }
+
+  return (data as SubmissionRow | null) ?? null;
+}

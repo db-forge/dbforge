@@ -6,6 +6,17 @@
 import { getSupabaseServiceClient } from "./client";
 import type { MissionRow, MissionStatus } from "./types";
 
+// PostgREST (which supabase-js talks to) does NOT stringify numeric/bigint
+// columns the way the raw `pg` driver does — it serializes them as plain
+// JSON numbers, and JSON.parse (used internally when the client reads the
+// response) silently loses precision for values with many significant
+// digits (numeric) or beyond 2^53 (bigint). Casting to ::text in the
+// select list is what actually guarantees a string comes back. This was
+// identified but deliberately deferred during M0-M3 (see project memory);
+// M4 fixes it because settlement math cannot tolerate float coercion.
+const MISSION_COLUMNS =
+  "id, chain_mission_id::text, buyer_address, title, description, reward_mon::text, target_count, accepted_count, status, created_at";
+
 export interface ListMissionsParams {
   status?: MissionStatus;
   limit: number;
@@ -24,7 +35,7 @@ export async function listMissions(
 
   let query = supabase
     .from("missions")
-    .select("*", { count: "exact" })
+    .select(MISSION_COLUMNS, { count: "exact" })
     .order("created_at", { ascending: false })
     .range(params.offset, params.offset + params.limit - 1);
 
@@ -46,7 +57,7 @@ export async function getMissionById(id: string): Promise<MissionRow | null> {
 
   const { data, error } = await supabase
     .from("missions")
-    .select("*")
+    .select(MISSION_COLUMNS)
     .eq("id", id)
     .maybeSingle();
 

@@ -4,8 +4,15 @@
 // Numeric/bigint fields that Postgres returns as strings (to avoid
 // precision loss) are kept as strings in the API response too.
 
-import type { MissionRow, SubmissionRow } from "@/lib/supabase/types";
+import type {
+  DatasetManifestRow,
+  MissionRow,
+  SettlementRow,
+  SubmissionRow,
+} from "@/lib/supabase/types";
 import type { CheckResult, FailureCode, VerificationOutcome } from "@/lib/verification/types";
+import type { CriterionEvidence } from "@/lib/verification/ai/types";
+import type { SemanticDecision } from "@/lib/verification/decision";
 
 export interface MissionDto {
   id: string;
@@ -76,6 +83,153 @@ export function toVerifyResponseDto(
     verificationVersion: outcome.verificationVersion,
     checks: outcome.checks,
     ...(outcome.failureCode ? { failureCode: outcome.failureCode } : {}),
+  };
+}
+
+// Response shape for POST /api/verify/[submissionId]/ai.
+export interface AiVerifyResponseDto {
+  submissionId: string;
+  decision: SemanticDecision;
+  semanticScore: number;
+  modelConfidence: number;
+  criteriaVersion: string;
+  semanticVersion: string;
+  provider: string;
+  model: string;
+  criteria: CriterionEvidence[];
+}
+
+// Response shape for POST /api/settlement/[submissionId].
+export interface SettlementResponseDto {
+  submissionId: string;
+  status: "paid";
+  settlement: {
+    txHash: string;
+    amountWei: string;
+    blockNumber: string;
+    chainMissionId: string;
+  };
+}
+
+export function toSettlementResponseDto(
+  submissionId: string,
+  settlement: SettlementRow,
+): SettlementResponseDto {
+  return {
+    submissionId,
+    status: "paid",
+    settlement: {
+      txHash: settlement.tx_hash ?? "",
+      amountWei: settlement.amount_wei,
+      blockNumber: settlement.block_number ?? "",
+      chainMissionId: settlement.chain_mission_id,
+    },
+  };
+}
+
+// Response shape for POST /api/settlement/[submissionId]/reconcile.
+export interface ReconcileResponseDto {
+  submissionId: string;
+  status: SubmissionRow["status"];
+  reconciliationStatus: SettlementRow["reconciliation_status"];
+  message?: string;
+  settlement?: {
+    txHash: string;
+    amountWei: string;
+    blockNumber: string;
+    chainMissionId: string;
+  };
+}
+
+export function toReconcileResponseDto(
+  submissionStatus: SubmissionRow["status"],
+  settlement: SettlementRow,
+  message?: string,
+): ReconcileResponseDto {
+  return {
+    submissionId: settlement.submission_id,
+    status: submissionStatus,
+    reconciliationStatus: settlement.reconciliation_status,
+    ...(message ? { message } : {}),
+    ...(settlement.status === "confirmed"
+      ? {
+          settlement: {
+            txHash: settlement.tx_hash ?? "",
+            amountWei: settlement.amount_wei,
+            blockNumber: settlement.block_number ?? "",
+            chainMissionId: settlement.chain_mission_id,
+          },
+        }
+      : {}),
+  };
+}
+
+// Response shape for POST /api/missions/[id]/dataset.
+export interface DatasetBuildResponseDto {
+  datasetId: string;
+  missionId: string;
+  version: number;
+  sampleCount: number;
+  merkleRoot: string;
+  metadataHash: string;
+  status: DatasetManifestRow["status"];
+}
+
+export function toDatasetBuildResponseDto(row: DatasetManifestRow): DatasetBuildResponseDto {
+  return {
+    datasetId: row.id,
+    missionId: row.mission_id,
+    version: row.version,
+    sampleCount: row.sample_count,
+    merkleRoot: row.merkle_root,
+    metadataHash: row.metadata_hash,
+    status: row.status,
+  };
+}
+
+// Response shape for POST /api/missions/[id]/dataset/anchor.
+export interface DatasetAnchorResponseDto {
+  datasetId: string;
+  missionId: string;
+  version: number;
+  sampleCount: number;
+  merkleRoot: string;
+  metadataHash: string;
+  status: DatasetManifestRow["status"];
+  anchorTxHash: string | null;
+}
+
+export function toDatasetAnchorResponseDto(row: DatasetManifestRow): DatasetAnchorResponseDto {
+  return {
+    datasetId: row.id,
+    missionId: row.mission_id,
+    version: row.version,
+    sampleCount: row.sample_count,
+    merkleRoot: row.merkle_root,
+    metadataHash: row.metadata_hash,
+    status: row.status,
+    anchorTxHash: row.anchor_tx_hash,
+  };
+}
+
+// Response shape for GET /api/missions/[id]/dataset.
+export interface DatasetSummaryDto {
+  version: number;
+  sampleCount: number;
+  merkleRoot: string;
+  metadataHash: string;
+  status: DatasetManifestRow["status"];
+  anchorTxHash: string | null;
+}
+
+export function toDatasetSummaryDto(row: DatasetManifestRow): DatasetSummaryDto {
+  return {
+    version: row.version,
+    sampleCount: row.sample_count,
+    merkleRoot: row.merkle_root,
+    metadataHash: row.metadata_hash,
+    status: row.status,
+    anchorTxHash: row.anchor_tx_hash,
   };
 }
 

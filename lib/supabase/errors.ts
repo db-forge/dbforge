@@ -30,3 +30,38 @@ export class SubmissionFinalizedError extends Error {
     this.name = "SubmissionFinalizedError";
   }
 }
+
+export class DeterministicVerificationRequiredError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DeterministicVerificationRequiredError";
+  }
+}
+
+export class SubmissionNotAcceptedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SubmissionNotAcceptedError";
+  }
+}
+
+export class SettlementAlreadyInProgressError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SettlementAlreadyInProgressError";
+  }
+}
+
+export class SettlementInconsistentStateError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SettlementInconsistentStateError";
+  }
+}
+
+export class DatasetImmutableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DatasetImmutableError";
+  }
+}

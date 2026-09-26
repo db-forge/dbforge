@@ -11,9 +11,12 @@ export type SubmissionStatus =
   | "verifying"
   | "accepted"
   | "rejected"
-  | "paid";
+  | "paid"
+  // M3: model result was ambiguous — needs a human decision, not a
+  // deterministic pass/fail. Not a final status; see lib/verification/stateMachine.ts.
+  | "manual_review";
 
-export type FinalDecision = "accepted" | "rejected" | "pending";
+export type FinalDecision = "accepted" | "rejected" | "pending" | "manual_review";
 
 export interface MissionRow {
   id: string;
@@ -65,10 +68,71 @@ export interface VerificationResultRow {
   verification_version: string;
   failure_code: string | null;
   duplicate_detected: boolean;
-  // M3 fields — untouched by M2, populated by AI verification later.
+  // M3 AI semantic verification fields — see lib/verification/ai/.
   ai_valid: boolean | null;
   ai_confidence: number | null;
   ai_reason: string | null;
+  ai_provider: string | null;
+  ai_model: string | null;
+  // Full validated structured VisionVerificationResult, for audit/replay.
+  ai_result: unknown;
+  semantic_score: number | null;
+  criteria_version: string | null;
+  ai_started_at: string | null;
+  ai_completed_at: string | null;
   final_decision: FinalDecision;
   created_at: string;
+}
+
+export type SettlementStatus = "pending" | "broadcasting" | "confirmed" | "failed";
+
+export type ReconciliationStatus =
+  | "none"
+  | "required"
+  | "confirmed_onchain"
+  | "not_found_onchain"
+  | "unknown";
+
+export interface SettlementRow {
+  id: string;
+  submission_id: string;
+  mission_id: string;
+  chain_mission_id: string;
+  contributor_address: string;
+  submission_hash: string;
+  // Money fields are `text` at the DB level too (see migration 0007) —
+  // never parsed as a JS number for settlement math.
+  amount_mon: string;
+  amount_wei: string;
+  status: SettlementStatus;
+  tx_hash: string | null;
+  block_number: string | null;
+  error_code: string | null;
+  created_at: string;
+  updated_at: string;
+  settled_at: string | null;
+  // M5 Part A reconciliation bookkeeping — see lib/verification/settlement/.
+  reconciliation_status: ReconciliationStatus;
+  last_reconciled_at: string | null;
+  reconciliation_attempts: number;
+  reconciliation_error: string | null;
+}
+
+export type DatasetManifestStatus = "draft" | "ready" | "anchoring" | "anchored" | "failed";
+
+export interface DatasetManifestRow {
+  id: string;
+  mission_id: string;
+  version: number;
+  chain_mission_id: string;
+  sample_count: number;
+  canonical_version: string;
+  merkle_root: string;
+  metadata_hash: string;
+  manifest: unknown;
+  status: DatasetManifestStatus;
+  anchor_tx_hash: string | null;
+  created_at: string;
+  updated_at: string;
+  anchored_at: string | null;
 }

@@ -59,6 +59,61 @@ export async function upsertVerificationResult(
   return data as VerificationResultRow;
 }
 
+export interface UpsertAiVerificationResultInput {
+  submissionId: string;
+  aiProvider: string;
+  aiModel: string;
+  aiResult: unknown;
+  aiValid: boolean;
+  aiConfidence: number;
+  aiReason: string;
+  semanticScore: number;
+  criteriaVersion: string;
+  aiStartedAt: string;
+  aiCompletedAt: string;
+  finalDecision: FinalDecision;
+}
+
+/**
+ * Records the M3 AI stage onto the EXISTING verification_results row for
+ * this submission (a plain update, not upsert) — a row must already exist,
+ * since reaching this point requires M2's deterministic pass to have
+ * created one. Only AI columns + final_decision are touched; the M2
+ * deterministic columns (technical_valid, checks, etc.) are left as-is.
+ */
+export async function recordAiVerificationResult(
+  input: UpsertAiVerificationResultInput,
+): Promise<VerificationResultRow> {
+  const supabase = getSupabaseServiceClient();
+
+  const { data, error } = await supabase
+    .from("verification_results")
+    .update({
+      ai_provider: input.aiProvider,
+      ai_model: input.aiModel,
+      ai_result: input.aiResult,
+      ai_valid: input.aiValid,
+      ai_confidence: input.aiConfidence,
+      ai_reason: input.aiReason,
+      semantic_score: input.semanticScore,
+      criteria_version: input.criteriaVersion,
+      ai_started_at: input.aiStartedAt,
+      ai_completed_at: input.aiCompletedAt,
+      final_decision: input.finalDecision,
+    })
+    .eq("submission_id", input.submissionId)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw new Error(
+      `Failed to persist AI verification result for submission ${input.submissionId}: ${error.message}`,
+    );
+  }
+
+  return data as VerificationResultRow;
+}
+
 export async function getVerificationResultBySubmissionId(
   submissionId: string,
 ): Promise<VerificationResultRow | null> {

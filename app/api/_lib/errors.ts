@@ -7,10 +7,19 @@ import { SupabaseConfigError } from "@/lib/supabase/client";
 import { StorageError } from "@/lib/supabase/storage";
 import {
   ConflictError,
+  DatasetImmutableError,
+  DeterministicVerificationRequiredError,
   DuplicateSubmissionError,
   NotFoundError,
+  SettlementInconsistentStateError,
   SubmissionFinalizedError,
+  SubmissionNotAcceptedError,
 } from "@/lib/supabase/errors";
+import { VisionProviderError } from "@/lib/verification/ai/types";
+import { FfmpegUnavailableError, FrameExtractionError } from "@/lib/verification/video";
+import { SettlementGatewayError } from "@/lib/verification/settlement/types";
+import { SettlementStatusGatewayError } from "@/lib/verification/settlement/statusGateway";
+import { DatasetAnchorGatewayError } from "@/lib/verification/dataset/anchorGateway";
 
 export type ApiErrorCode =
   | "VALIDATION_ERROR"
@@ -33,7 +42,33 @@ export type ApiErrorCode =
   | "SUBMISSION_FINALIZED"
   | "MEDIA_NOT_FOUND"
   | "VERIFICATION_FAILED"
-  | "STORAGE_ERROR";
+  | "STORAGE_ERROR"
+  // M3 AI semantic verification (POST /api/verify/[submissionId]/ai)
+  | "DETERMINISTIC_VERIFICATION_REQUIRED"
+  | "AI_PROVIDER_UNAVAILABLE"
+  | "AI_RESULT_INVALID"
+  | "FRAME_EXTRACTION_UNAVAILABLE"
+  // M4 settlement (POST /api/settlement/[submissionId])
+  | "SETTLEMENT_NOT_ALLOWED"
+  | "SETTLEMENT_ALREADY_IN_PROGRESS"
+  | "SETTLEMENT_GATEWAY_UNAVAILABLE"
+  | "SETTLEMENT_FAILED"
+  | "CHAIN_MISSION_NOT_CONFIGURED"
+  | "INVALID_REWARD_AMOUNT"
+  | "SUBMISSION_NOT_ACCEPTED"
+  | "SETTLEMENT_INCONSISTENT_STATE"
+  // M5 Part A settlement reconciliation (POST /api/settlement/[submissionId]/reconcile)
+  | "RECONCILIATION_GATEWAY_UNAVAILABLE"
+  | "RECONCILIATION_NOT_REQUIRED"
+  | "SETTLEMENT_STATE_AMBIGUOUS"
+  // M5 Parts J/K/O dataset manifest + anchor (POST/GET /api/missions/[id]/dataset[/anchor])
+  | "DATASET_NOT_READY"
+  | "DATASET_EMPTY"
+  | "DATASET_ALREADY_ANCHORED"
+  | "DATASET_ANCHOR_IN_PROGRESS"
+  | "DATASET_ANCHOR_GATEWAY_UNAVAILABLE"
+  | "DATASET_ANCHOR_FAILED"
+  | "DATASET_IMMUTABLE";
 
 export class ApiError extends Error {
   readonly status: number;
@@ -115,6 +150,94 @@ export class ApiError extends Error {
   static storageError(message: string): ApiError {
     return new ApiError(502, "STORAGE_ERROR", message);
   }
+
+  static deterministicVerificationRequired(message: string): ApiError {
+    return new ApiError(409, "DETERMINISTIC_VERIFICATION_REQUIRED", message);
+  }
+
+  static aiProviderUnavailable(message: string): ApiError {
+    return new ApiError(503, "AI_PROVIDER_UNAVAILABLE", message);
+  }
+
+  static aiResultInvalid(message: string): ApiError {
+    return new ApiError(502, "AI_RESULT_INVALID", message);
+  }
+
+  static frameExtractionUnavailable(message: string): ApiError {
+    return new ApiError(503, "FRAME_EXTRACTION_UNAVAILABLE", message);
+  }
+
+  static settlementNotAllowed(message: string): ApiError {
+    return new ApiError(409, "SETTLEMENT_NOT_ALLOWED", message);
+  }
+
+  static settlementAlreadyInProgress(message: string): ApiError {
+    return new ApiError(409, "SETTLEMENT_ALREADY_IN_PROGRESS", message);
+  }
+
+  static settlementGatewayUnavailable(message: string): ApiError {
+    return new ApiError(503, "SETTLEMENT_GATEWAY_UNAVAILABLE", message);
+  }
+
+  static settlementFailed(message: string): ApiError {
+    return new ApiError(502, "SETTLEMENT_FAILED", message);
+  }
+
+  static chainMissionNotConfigured(message: string): ApiError {
+    return new ApiError(409, "CHAIN_MISSION_NOT_CONFIGURED", message);
+  }
+
+  static invalidRewardAmount(message: string): ApiError {
+    return new ApiError(409, "INVALID_REWARD_AMOUNT", message);
+  }
+
+  static submissionNotAccepted(message: string): ApiError {
+    return new ApiError(409, "SUBMISSION_NOT_ACCEPTED", message);
+  }
+
+  static settlementInconsistentState(message: string, status = 409): ApiError {
+    return new ApiError(status, "SETTLEMENT_INCONSISTENT_STATE", message);
+  }
+
+  static reconciliationGatewayUnavailable(message: string): ApiError {
+    return new ApiError(503, "RECONCILIATION_GATEWAY_UNAVAILABLE", message);
+  }
+
+  static reconciliationNotRequired(message: string): ApiError {
+    return new ApiError(409, "RECONCILIATION_NOT_REQUIRED", message);
+  }
+
+  static settlementStateAmbiguous(message: string): ApiError {
+    return new ApiError(409, "SETTLEMENT_STATE_AMBIGUOUS", message);
+  }
+
+  static datasetNotReady(message: string): ApiError {
+    return new ApiError(409, "DATASET_NOT_READY", message);
+  }
+
+  static datasetEmpty(message: string): ApiError {
+    return new ApiError(409, "DATASET_EMPTY", message);
+  }
+
+  static datasetAlreadyAnchored(message: string): ApiError {
+    return new ApiError(409, "DATASET_ALREADY_ANCHORED", message);
+  }
+
+  static datasetAnchorInProgress(message: string): ApiError {
+    return new ApiError(409, "DATASET_ANCHOR_IN_PROGRESS", message);
+  }
+
+  static datasetAnchorGatewayUnavailable(message: string): ApiError {
+    return new ApiError(503, "DATASET_ANCHOR_GATEWAY_UNAVAILABLE", message);
+  }
+
+  static datasetAnchorFailed(message: string): ApiError {
+    return new ApiError(502, "DATASET_ANCHOR_FAILED", message);
+  }
+
+  static datasetImmutable(message: string): ApiError {
+    return new ApiError(409, "DATASET_IMMUTABLE", message);
+  }
 }
 
 export function apiErrorResponse(error: ApiError): NextResponse {
@@ -163,10 +286,92 @@ export function withApiErrorHandling(
       return apiErrorResponse(new ApiError(409, "SUBMISSION_FINALIZED", error.message));
     }
 
+    if (error instanceof DeterministicVerificationRequiredError) {
+      return apiErrorResponse(
+        new ApiError(409, "DETERMINISTIC_VERIFICATION_REQUIRED", error.message),
+      );
+    }
+
+    if (error instanceof SubmissionNotAcceptedError) {
+      return apiErrorResponse(ApiError.submissionNotAccepted(error.message));
+    }
+
+    if (error instanceof SettlementInconsistentStateError) {
+      return apiErrorResponse(ApiError.settlementInconsistentState(error.message));
+    }
+
+    if (error instanceof SettlementGatewayError) {
+      console.error(`Settlement gateway error (${error.kind}):`, error.cause ?? error);
+      if (error.kind === "unavailable") {
+        return apiErrorResponse(
+          ApiError.settlementGatewayUnavailable(
+            "The settlement gateway is not currently available. No payment was attempted.",
+          ),
+        );
+      }
+      return apiErrorResponse(
+        ApiError.settlementFailed(
+          "The settlement gateway reported a failure. No payment was completed.",
+        ),
+      );
+    }
+
+    if (error instanceof DatasetImmutableError) {
+      return apiErrorResponse(ApiError.datasetImmutable(error.message));
+    }
+
+    if (error instanceof SettlementStatusGatewayError) {
+      console.error(`Settlement status gateway error (${error.kind}):`, error.cause ?? error);
+      return apiErrorResponse(
+        ApiError.reconciliationGatewayUnavailable(
+          "The chain settlement-status gateway is not currently available.",
+        ),
+      );
+    }
+
+    if (error instanceof DatasetAnchorGatewayError) {
+      console.error(`Dataset anchor gateway error (${error.kind}):`, error.cause ?? error);
+      if (error.kind === "unavailable") {
+        return apiErrorResponse(
+          ApiError.datasetAnchorGatewayUnavailable(
+            "The dataset anchor gateway is not currently available. No anchor transaction was attempted.",
+          ),
+        );
+      }
+      return apiErrorResponse(
+        ApiError.datasetAnchorFailed(
+          "The dataset anchor gateway reported a failure. No anchor transaction was completed.",
+        ),
+      );
+    }
+
     if (error instanceof StorageError) {
       console.error("Storage error:", error.cause ?? error);
       return apiErrorResponse(
         new ApiError(502, "STORAGE_ERROR", "A storage error occurred processing this request."),
+      );
+    }
+
+    if (error instanceof VisionProviderError) {
+      console.error(`Vision provider error (${error.kind}):`, error.cause ?? error);
+      if (error.kind === "invalid_response") {
+        return apiErrorResponse(
+          ApiError.aiResultInvalid("The vision provider returned an invalid or malformed result."),
+        );
+      }
+      return apiErrorResponse(
+        ApiError.aiProviderUnavailable(
+          "The vision provider is currently unavailable. The submission remains in its current state and this can be retried.",
+        ),
+      );
+    }
+
+    if (error instanceof FfmpegUnavailableError || error instanceof FrameExtractionError) {
+      console.error("Frame extraction error:", error.cause ?? error);
+      return apiErrorResponse(
+        ApiError.frameExtractionUnavailable(
+          "Video frame extraction is unavailable on this runtime. The submission remains in its current state and this can be retried.",
+        ),
       );
     }
 
