@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {Hashes} from "@openzeppelin/contracts/utils/cryptography/Hashes.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {BaseTest} from "./utils/BaseTest.sol";
 import {ProvenanceRegistry} from "../src/ProvenanceRegistry.sol";
 import {IMissionVault} from "../src/interfaces/IMissionVault.sol";
@@ -11,7 +12,6 @@ import {
     ZeroAddress,
     MissionNotEnded,
     NotBuyer,
-    AlreadyAnchored,
     NotAnchored,
     AlreadyFinalized,
     SampleCountMismatch,
@@ -31,9 +31,9 @@ contract ProvenanceRegistryTest is BaseTest {
     function setUp() public override {
         super.setUp();
         missionId = _createDefault();
-        _complete(missionId, TARGET, 0); // pays _sub(0), _sub(1), _sub(2)
+        _complete(missionId, TARGET, 0); // settles _sub(0), _sub(1), _sub(2)
 
-        // Tree over the three paid submissions: root = H(H(l0, l1), l2).
+        // Tree over the three settled submissions: root = H(H(l0, l1), l2).
         l0 = _leaf(_sub(0));
         l1 = _leaf(_sub(1));
         l2 = _leaf(_sub(2));
@@ -68,6 +68,9 @@ contract ProvenanceRegistryTest is BaseTest {
         assertEq(address(registry.vault()), address(vault));
         assertTrue(registry.hasRole(registry.DEFAULT_ADMIN_ROLE(), admin));
         assertTrue(registry.hasRole(registry.VERIFIER_ROLE(), verifier));
+        assertTrue(registry.hasRole(registry.PAUSER_ROLE(), admin));
+        assertEq(registry.PAUSER_ROLE(), keccak256("PAUSER_ROLE"));
+        assertFalse(registry.paused());
     }
 
     function test_constructor_revertsOnZeroAdmin() public {
@@ -85,7 +88,7 @@ contract ProvenanceRegistryTest is BaseTest {
     function test_anchor_storesAndEmits() public {
         vm.warp(1_800_000_000);
         vm.expectEmit(address(registry));
-        emit IProvenanceRegistry.DatasetAnchored(missionId, root, TARGET, MANIFEST);
+        emit IProvenanceRegistry.DatasetAnchored(missionId, root, bytes32(0), TARGET, MANIFEST);
         _anchor();
 
         IProvenanceRegistry.Dataset memory d = registry.getDataset(missionId);
@@ -175,11 +178,106 @@ contract ProvenanceRegistryTest is BaseTest {
         registry.anchorDataset(missionId, root, TARGET + 1, MANIFEST);
     }
 
-    function test_anchor_revertsTwice() public {
-        _anchor();
+    function test_reanchor_beforeFinalize_overwritesAndEmitsPreviousRoot() public {
+        // F5: a wrong root can be corrected until the buyer finalizes.
+        bytes32 wrongRoot = keccak256("wrong root");
+        vm.warp(1_800_000_000);
         vm.prank(verifier);
-        vm.expectRevert(abi.encodeWithSelector(AlreadyAnchored.selector, missionId));
+        registry.anchorDataset(missionId, wrongRoot, TARGET, keccak256("old manifest"));
+        assertFalse(registry.verifySample(missionId, _sub(2), _proof(n01)));
+
+        vm.warp(1_800_000_100);
+        vm.expectEmit(address(registry));
+        emit IProvenanceRegistry.DatasetAnchored(missionId, root, wrongRoot, TARGET, MANIFEST);
+        _anchor();
+
+        IProvenanceRegistry.Dataset memory d = registry.getDataset(missionId);
+        assertEq(d.merkleRoot, root);
+        assertEq(d.metadataHash, MANIFEST);
+        assertEq(d.anchoredAt, 1_800_000_100, "timestamp of the latest anchor");
+        assertFalse(d.finalized);
+        assertTrue(registry.verifySample(missionId, _sub(2), _proof(n01)));
+    }
+
+    function test_reanchor_afterFinalize_reverts() public {
+        _anchor();
+        vm.prank(buyer);
+        registry.finalizeDataset(missionId);
+        vm.prank(verifier);
+        vm.expectRevert(abi.encodeWithSelector(AlreadyFinalized.selector, missionId));
         registry.anchorDataset(missionId, keccak256("other root"), TARGET, MANIFEST);
+        assertEq(registry.getDataset(missionId).merkleRoot, root, "root is frozen");
+    }
+
+    function test_reanchor_stillChecksInputs() public {
+        _anchor();
+        vm.startPrank(verifier);
+        vm.expectRevert(InvalidRoot.selector);
+        registry.anchorDataset(missionId, bytes32(0), TARGET, MANIFEST);
+        vm.expectRevert(abi.encodeWithSelector(SampleCountMismatch.selector, TARGET, TARGET - 1));
+        registry.anchorDataset(missionId, root, TARGET - 1, MANIFEST);
+        vm.stopPrank();
+    }
+
+    // --- pause ---
+
+    function test_pause_blocksAnchor() public {
+        vm.prank(guardian);
+        registry.pause();
+        vm.prank(verifier);
+        vm.expectRevert(Pausable.EnforcedPause.selector);
+        registry.anchorDataset(missionId, root, TARGET, MANIFEST);
+
+        vm.prank(admin);
+        registry.unpause();
+        _anchor();
+        assertEq(registry.getDataset(missionId).merkleRoot, root);
+    }
+
+    function test_pause_allowsFinalizeAndVerify() public {
+        _anchor();
+        vm.prank(guardian);
+        registry.pause();
+        assertTrue(registry.verifySample(missionId, _sub(2), _proof(n01)));
+        vm.prank(buyer);
+        registry.finalizeDataset(missionId);
+        assertTrue(registry.getDataset(missionId).finalized);
+    }
+
+    function test_pause_onlyPauser_unpause_onlyAdmin() public {
+        bytes32 pauser = registry.PAUSER_ROLE();
+        vm.prank(verifier);
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, verifier, pauser)
+        );
+        registry.pause();
+
+        vm.expectEmit(address(registry));
+        emit Pausable.Paused(guardian);
+        vm.prank(guardian);
+        registry.pause();
+
+        bytes32 adminRole = registry.DEFAULT_ADMIN_ROLE();
+        vm.prank(guardian);
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, guardian, adminRole)
+        );
+        registry.unpause();
+
+        vm.prank(admin);
+        registry.unpause();
+        assertFalse(registry.paused());
+    }
+
+    function test_revokedVerifier_cannotAnchor() public {
+        bytes32 role = registry.VERIFIER_ROLE();
+        vm.prank(admin);
+        registry.revokeRole(role, verifier);
+        vm.prank(verifier);
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, verifier, role)
+        );
+        registry.anchorDataset(missionId, root, TARGET, MANIFEST);
     }
 
     // --- finalizeDataset ---
@@ -285,9 +383,9 @@ contract ProvenanceRegistryTest is BaseTest {
         assertFalse(registry.verifySample(missionId, _sub(0), _proof(l1, l2)));
     }
 
-    function test_verifySample_falseWhenSubmissionNotPaid() public {
-        // Valid proof for a hash that was never paid by the Vault.
-        bytes32 unpaid = keccak256("never paid");
+    function test_verifySample_falseWhenSubmissionNotSettled() public {
+        // Valid proof for a hash that was never settled by the Vault.
+        bytes32 unpaid = keccak256("never settled");
         uint256 id = _createDefault();
         _approve(id, contributor, _sub(30));
         vm.prank(buyer);
@@ -301,6 +399,41 @@ contract ProvenanceRegistryTest is BaseTest {
 
         assertTrue(registry.verifySample(id, _sub(30), _proof(lUnpaid)));
         assertFalse(registry.verifySample(id, unpaid, _proof(lPaid)));
+    }
+
+    function test_verifySample_falseForHashSettledOnlyInOtherMission() public {
+        // F3: true means "included and settled in THIS mission". _sub(0) is settled in `missionId` only.
+        uint256 other = _createDefault();
+        _approve(other, contributor, _sub(40));
+        vm.prank(buyer);
+        vault.cancelMission(other);
+
+        bytes32 lForeign = _leaf(_sub(0));
+        bytes32 lOwn = _leaf(_sub(40));
+        vm.prank(verifier);
+        registry.anchorDataset(other, Hashes.commutativeKeccak256(lForeign, lOwn), 1, MANIFEST);
+
+        assertTrue(registry.verifySample(other, _sub(40), _proof(lForeign)));
+        assertFalse(registry.verifySample(other, _sub(0), _proof(lOwn)));
+    }
+
+    function test_verifySample_sameHashSettledInTwoMissions_trueInBoth() public {
+        uint256 other = _createDefault();
+        _approve(other, stranger, _sub(0)); // same file, second mission
+        vm.prank(buyer);
+        vault.cancelMission(other);
+        _anchor();
+        vm.prank(verifier);
+        registry.anchorDataset(other, _leaf(_sub(0)), 1, MANIFEST);
+
+        assertTrue(registry.verifySample(missionId, _sub(0), _proof(l1, l2)));
+        assertTrue(registry.verifySample(other, _sub(0), new bytes32[](0)));
+    }
+
+    function test_verifySample_rejectsInternalNodeAsLeaf() public {
+        // n01 is an internal node; presenting it as a "submission" must fail (double-hash leaves).
+        _anchor();
+        assertFalse(registry.verifySample(missionId, n01, _proof(l2)));
     }
 
     function test_getDataset_unknownIsEmpty() public view {

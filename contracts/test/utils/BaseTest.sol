@@ -17,6 +17,7 @@ abstract contract BaseTest is Test {
     address internal buyer = makeAddr("buyer");
     address internal contributor = makeAddr("contributor");
     address internal stranger = makeAddr("stranger");
+    address internal guardian = makeAddr("guardian");
 
     bytes32 internal constant META = keccak256("mission-metadata");
     uint256 internal constant REWARD = 0.1 ether;
@@ -31,6 +32,8 @@ abstract contract BaseTest is Test {
         vault.setFactory(address(factory));
         vault.grantRole(vault.VERIFIER_ROLE(), verifier);
         registry.grantRole(registry.VERIFIER_ROLE(), verifier);
+        vault.grantRole(vault.PAUSER_ROLE(), guardian);
+        registry.grantRole(registry.PAUSER_ROLE(), guardian);
         vm.stopPrank();
 
         vm.deal(buyer, 100 ether);
@@ -48,6 +51,15 @@ abstract contract BaseTest is Test {
     function _approve(uint256 missionId, address to, bytes32 submissionHash) internal {
         vm.prank(verifier);
         vault.approveSubmission(missionId, to, submissionHash);
+    }
+
+    function _withdraw(address who) internal {
+        vm.prank(who);
+        vault.withdraw();
+    }
+
+    function _withdrawable(address who) internal view returns (uint256 w) {
+        (,, w) = vault.getContributorBalance(who);
     }
 
     function _sub(uint256 i) internal pure returns (bytes32) {

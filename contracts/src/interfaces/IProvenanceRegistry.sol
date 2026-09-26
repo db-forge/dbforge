@@ -9,11 +9,13 @@ interface IProvenanceRegistry {
         bytes32 merkleRoot;
         bytes32 metadataHash; // hash of the dataset manifest JSON
         uint256 sampleCount;
-        uint64 anchoredAt; // block timestamp; 0 = not anchored
+        uint64 anchoredAt; // timestamp of the latest anchor; 0 = never anchored
         bool finalized;
     }
 
-    event DatasetAnchored(uint256 indexed missionId, bytes32 merkleRoot, uint256 sampleCount, bytes32 metadataHash);
+    event DatasetAnchored(
+        uint256 indexed missionId, bytes32 merkleRoot, bytes32 previousRoot, uint256 sampleCount, bytes32 metadataHash
+    );
     event DatasetFinalized(uint256 indexed missionId, address indexed buyer);
 
     function vault() external view returns (IMissionVault);
@@ -21,6 +23,10 @@ interface IProvenanceRegistry {
     function anchorDataset(uint256 missionId, bytes32 merkleRoot, uint256 sampleCount, bytes32 metadataHash) external;
 
     function finalizeDataset(uint256 missionId) external;
+
+    function pause() external;
+
+    function unpause() external;
 
     function verifySample(uint256 missionId, bytes32 submissionHash, bytes32[] calldata proof)
         external
