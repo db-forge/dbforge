@@ -1,11 +1,58 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* DBForge design tokens (Tailwind v4: tokens live here instead of tailwind.config) */
+@theme {
+  --color-ink: #27005d;
+  --color-primary: #9400ff;
+  --color-sky: #aed2ff;
+  --color-ice: #e4f1ff;
+  --color-success: #16a34a;
+  --color-danger: #b42318;
+  --color-warning: #d97706;
+
+  --font-sans: var(--font-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+
+  --animate-toast-in: toast-in 180ms ease-out;
+  --animate-pop: pop 320ms ease-out;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pop {
+  0% {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.04);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+html,
+body {
+  background: var(--color-ice);
+  color: var(--color-ink);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--color-sky);
 }
