@@ -35,7 +35,17 @@ export interface SubmissionRow {
   id: string;
   mission_id: string;
   contributor_address: string;
+  // Legacy M0 field: a caller-supplied URL for the metadata-only creation
+  // flow (POST /api/submissions). Not used by the M1 upload pipeline.
   media_url: string | null;
+  // Private Supabase Storage object path populated by the M1 upload
+  // pipeline (POST /api/submissions/upload). See lib/supabase/storage.ts.
+  media_path: string | null;
+  media_type: string | null;
+  // Max supported size is 100 MB, well within a safe JS integer — stored
+  // as a plain `integer` column (not bigint) so no precision handling is
+  // needed here.
+  size_bytes: number | null;
   media_hash: string | null;
   status: SubmissionStatus;
   confidence: number | null;

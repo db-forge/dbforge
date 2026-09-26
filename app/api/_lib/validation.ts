@@ -5,11 +5,11 @@
 import { ApiError } from "./errors";
 import type { MissionStatus, SubmissionStatus } from "@/lib/supabase/types";
 
-const UUID_RE =
+export const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Monad is EVM-compatible; addresses are 20-byte hex strings.
-const EVM_ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
+export const EVM_ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
 
 const MISSION_STATUSES: readonly MissionStatus[] = [
   "draft",
@@ -140,6 +140,28 @@ export function requireEvmAddress(
     throw ApiError.validation(`${field} must be a valid 0x-prefixed EVM address.`, {
       field,
     });
+  }
+  return value;
+}
+
+export function requireFormString(form: FormData, field: string): string {
+  const value = form.get(field);
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw ApiError.invalidInput(
+      `${field} is required and must be a non-empty string field.`,
+      { field },
+    );
+  }
+  return value;
+}
+
+// A file field parsed from multipart/form-data comes back as a File, which
+// extends Blob — this covers both the Node/undici File global and any
+// Blob-like implementation.
+export function requireFormFile(form: FormData, field: string): Blob {
+  const value = form.get(field);
+  if (!(value instanceof Blob)) {
+    throw ApiError.invalidInput(`${field} is required and must be a file.`, { field });
   }
   return value;
 }

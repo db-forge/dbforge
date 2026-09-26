@@ -4,14 +4,24 @@
 
 import { NextResponse } from "next/server";
 import { SupabaseConfigError } from "@/lib/supabase/client";
-import { ConflictError, NotFoundError } from "@/lib/supabase/errors";
+import { ConflictError, DuplicateSubmissionError, NotFoundError } from "@/lib/supabase/errors";
 
 export type ApiErrorCode =
   | "VALIDATION_ERROR"
   | "NOT_FOUND"
   | "CONFLICT"
   | "CONFIG_ERROR"
-  | "INTERNAL_ERROR";
+  | "INTERNAL_ERROR"
+  // M1 upload pipeline (POST /api/submissions/upload)
+  | "INVALID_INPUT"
+  | "MISSION_NOT_FOUND"
+  | "MISSION_NOT_ACTIVE"
+  | "UNSUPPORTED_MEDIA_TYPE"
+  | "FILE_TOO_LARGE"
+  | "EMPTY_FILE"
+  | "DUPLICATE_SUBMISSION"
+  | "STORAGE_UPLOAD_FAILED"
+  | "DATABASE_ERROR";
 
 export class ApiError extends Error {
   readonly status: number;
@@ -36,6 +46,42 @@ export class ApiError extends Error {
 
   static conflict(message: string): ApiError {
     return new ApiError(409, "CONFLICT", message);
+  }
+
+  static invalidInput(message: string, details?: unknown): ApiError {
+    return new ApiError(400, "INVALID_INPUT", message, details);
+  }
+
+  static missionNotFound(message: string): ApiError {
+    return new ApiError(404, "MISSION_NOT_FOUND", message);
+  }
+
+  static missionNotActive(message: string): ApiError {
+    return new ApiError(409, "MISSION_NOT_ACTIVE", message);
+  }
+
+  static unsupportedMediaType(message: string, details?: unknown): ApiError {
+    return new ApiError(400, "UNSUPPORTED_MEDIA_TYPE", message, details);
+  }
+
+  static fileTooLarge(message: string, details?: unknown): ApiError {
+    return new ApiError(413, "FILE_TOO_LARGE", message, details);
+  }
+
+  static emptyFile(message: string): ApiError {
+    return new ApiError(400, "EMPTY_FILE", message);
+  }
+
+  static duplicateSubmission(message: string): ApiError {
+    return new ApiError(409, "DUPLICATE_SUBMISSION", message);
+  }
+
+  static storageUploadFailed(message: string): ApiError {
+    return new ApiError(502, "STORAGE_UPLOAD_FAILED", message);
+  }
+
+  static databaseError(message: string): ApiError {
+    return new ApiError(500, "DATABASE_ERROR", message);
   }
 }
 
@@ -75,6 +121,10 @@ export function withApiErrorHandling(
 
     if (error instanceof ConflictError) {
       return apiErrorResponse(new ApiError(409, "CONFLICT", error.message));
+    }
+
+    if (error instanceof DuplicateSubmissionError) {
+      return apiErrorResponse(new ApiError(409, "DUPLICATE_SUBMISSION", error.message));
     }
 
     console.error("Unhandled API error:", error);

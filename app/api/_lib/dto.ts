@@ -24,10 +24,28 @@ export interface SubmissionDto {
   missionId: string;
   contributorAddress: string;
   mediaUrl: string | null;
+  mediaPath: string | null;
+  mediaType: string | null;
+  sizeBytes: number | null;
   mediaHash: string | null;
   status: SubmissionRow["status"];
   confidence: number | null;
   txHash: string | null;
+  createdAt: string;
+}
+
+// Response shape for POST /api/submissions/upload — deliberately narrower
+// than SubmissionDto (no confidence/txHash/mediaUrl, which don't apply to
+// a just-created upload).
+export interface UploadedSubmissionDto {
+  id: string;
+  missionId: string;
+  contributorAddress: string;
+  mediaPath: string;
+  mediaHash: string;
+  mediaType: string;
+  sizeBytes: number;
+  status: SubmissionRow["status"];
   createdAt: string;
 }
 
@@ -52,10 +70,27 @@ export function toSubmissionDto(row: SubmissionRow): SubmissionDto {
     missionId: row.mission_id,
     contributorAddress: row.contributor_address,
     mediaUrl: row.media_url,
+    mediaPath: row.media_path,
+    mediaType: row.media_type,
+    sizeBytes: row.size_bytes,
     mediaHash: row.media_hash,
     status: row.status,
     confidence: row.confidence,
     txHash: row.tx_hash,
+    createdAt: row.created_at,
+  };
+}
+
+export function toUploadedSubmissionDto(row: SubmissionRow): UploadedSubmissionDto {
+  return {
+    id: row.id,
+    missionId: row.mission_id,
+    contributorAddress: row.contributor_address,
+    mediaPath: row.media_path ?? "",
+    mediaHash: row.media_hash ?? "",
+    mediaType: row.media_type ?? "",
+    sizeBytes: row.size_bytes ?? 0,
+    status: row.status,
     createdAt: row.created_at,
   };
 }
