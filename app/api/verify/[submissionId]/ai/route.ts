@@ -28,7 +28,11 @@ import { buildMissionCriteria, CRITERIA_VERSION } from "@/lib/verification/crite
 import { getMediaTypeConfig } from "@/lib/verification/media";
 import { extractVideoFrames } from "@/lib/verification/video";
 import { getVisionVerifier } from "@/lib/verification/ai/provider";
-import type { VisionMediaFrame } from "@/lib/verification/ai/types";
+import type {
+  VisionCallMetadata,
+  VisionMediaFrame,
+  VisionVerificationResult,
+} from "@/lib/verification/ai/types";
 import { decideSemanticOutcome, SEMANTIC_DECISION_VERSION, type SemanticDecision } from "@/lib/verification/decision";
 
 interface RouteParams {
@@ -59,41 +63,75 @@ export async function POST(_request: Request, { params }: RouteParams) {
     }
 
     const criteria = buildMissionCriteria(mission);
-    const mediaBytes = await downloadSubmissionMedia(submission.media_path);
-    const mediaKind = getMediaTypeConfig(submission.media_type)?.kind ?? "image";
-
-    let frames: VisionMediaFrame[];
-    if (mediaKind === "video") {
-      const extracted = await extractVideoFrames(mediaBytes);
-      frames = extracted.map((f) => ({
-        index: f.index,
-        timestampMs: f.timestampMs,
-        mimeType: f.mimeType,
-        base64: f.base64,
-      }));
-    } else {
-      frames = [
-        {
-          index: 0,
-          timestampMs: 0,
-          mimeType: submission.media_type,
-          base64: mediaBytes.toString("base64"),
-        },
-      ];
-    }
-
-    const verifier = getVisionVerifier();
-
     const aiStartedAt = new Date().toISOString();
-    const { result: aiResult, metadata } = await verifier.verify({
-      missionTitle: mission.title,
-      missionDescription: mission.description,
-      criteria,
-      frames,
-    });
+    const demoAutoApprove = process.env.DEMO_AUTO_APPROVE_SUBMISSIONS === "true";
+    let aiResult: VisionVerificationResult;
+    let metadata: VisionCallMetadata;
+
+    try {
+      const mediaBytes = await downloadSubmissionMedia(submission.media_path);
+      const mediaKind = getMediaTypeConfig(submission.media_type)?.kind ?? "image";
+
+      let frames: VisionMediaFrame[];
+      if (mediaKind === "video") {
+        const extracted = await extractVideoFrames(mediaBytes);
+        frames = extracted.map((f) => ({
+          index: f.index,
+          timestampMs: f.timestampMs,
+          mimeType: f.mimeType,
+          base64: f.base64,
+        }));
+      } else {
+        frames = [
+          {
+            index: 0,
+            timestampMs: 0,
+            mimeType: submission.media_type,
+            base64: mediaBytes.toString("base64"),
+          },
+        ];
+      }
+
+      const verifier = getVisionVerifier();
+      ({ result: aiResult, metadata } = await verifier.verify({
+        missionTitle: mission.title,
+        missionDescription: mission.description,
+        criteria,
+        frames,
+      }));
+    } catch (error) {
+      if (!demoAutoApprove) throw error;
+
+      // Demo events must not stall because a vision provider or server-side
+      // video decoder is temporarily unavailable. Deterministic verification
+      // has already passed at this point, and the audit record clearly marks
+      // that this was a demo fallback rather than an AI judgment.
+      aiResult = {
+        valid: true,
+        overallConfidence: 1,
+        criteria: criteria.map((criterion) => ({
+          criterionId: criterion.id,
+          passed: true,
+          confidence: 1,
+          evidence: "Demo auto-approval after deterministic verification.",
+        })),
+        mediaQuality: { usable: true, confidence: 1, issues: [] },
+        reason: "Demo auto-approval after deterministic verification.",
+      };
+      metadata = {
+        provider: "demo-fallback",
+        model: "deterministic-pass",
+        durationMs: Date.now() - Date.parse(aiStartedAt),
+      };
+    }
     const aiCompletedAt = new Date().toISOString();
 
-    const { decision, semanticScore, reason } = decideSemanticOutcome(criteria, aiResult);
+    let { decision, semanticScore, reason } = decideSemanticOutcome(criteria, aiResult);
+    if (demoAutoApprove && decision !== "accepted") {
+      decision = "accepted";
+      semanticScore = 1;
+      reason = `Demo auto-approval after deterministic verification. Original AI result: ${reason}`;
+    }
 
     const persist = (finalDecision: SemanticDecision, aiReason: string) => {
       const input: UpsertAiVerificationResultInput = {

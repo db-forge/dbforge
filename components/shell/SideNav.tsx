@@ -4,7 +4,7 @@ import { Upload } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { getMyRegistrations } from "@/lib/frontend/api";
-import { useApi } from "@/lib/frontend/hooks";
+import { useApi, useSession } from "@/lib/frontend/hooks";
 import { cn } from "@/lib/frontend/utils";
 import { SessionMenu } from "../auth/SessionMenu";
 import { useT } from "../I18nProvider";
@@ -23,6 +23,7 @@ export function useUploadHref() {
 export function SideNav() {
   const pathname = usePathname();
   const uploadHref = useUploadHref();
+  const { session } = useSession();
   const t = useT();
 
   return (
@@ -58,12 +59,14 @@ export function SideNav() {
           <Upload className="size-5" />
           <span className="hidden lg:inline">{t.nav.upload}</span>
         </Link>
-        <Link
-          href="/buyer"
-          className="hidden px-3 font-mono text-xs text-link hover:underline lg:block"
-        >
-          {t.nav.companyPanel}
-        </Link>
+        {session?.kind === "company" && (
+          <Link
+            href="/buyer"
+            className="hidden px-3 font-mono text-xs text-link hover:underline lg:block"
+          >
+            {t.nav.companyPanel}
+          </Link>
+        )}
       </div>
 
       <div className="flex flex-col items-center gap-3 lg:items-stretch">
