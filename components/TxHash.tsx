@@ -8,7 +8,7 @@ export function TxHash({ hash, className, full }: { hash: string; className?: st
       target="_blank"
       rel="noreferrer"
       className={cn(
-        "inline-flex items-center gap-1 font-mono text-xs text-primary underline-offset-2 hover:underline",
+        "inline-flex items-center gap-1 font-mono text-xs text-accent underline-offset-2 hover:underline",
         className,
       )}
     >

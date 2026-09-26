@@ -10,12 +10,12 @@ export type BadgeStatus =
   | "network";
 
 const STYLES: Record<BadgeStatus, { label: string; className: string }> = {
-  accepted: { label: "Kabul", className: "border-success/40 bg-green-50 text-success" },
-  rejected: { label: "Red", className: "border-danger/40 bg-red-50 text-danger" },
-  review: { label: "İnceleniyor", className: "border-warning/40 bg-amber-50 text-warning" },
-  verifying: { label: "Doğrulanıyor", className: "border-sky bg-ice text-primary" },
-  active: { label: "Aktif", className: "border-sky bg-ice text-primary" },
-  completed: { label: "Tamamlandı", className: "border-success/40 bg-green-50 text-success" },
+  accepted: { label: "Kabul", className: "border-success/40 bg-success/15 text-success" },
+  rejected: { label: "Red", className: "border-danger/40 bg-danger/15 text-danger" },
+  review: { label: "İnceleniyor", className: "border-warning/40 bg-warning/15 text-warning" },
+  verifying: { label: "Doğrulanıyor", className: "border-sky bg-ice text-accent" },
+  active: { label: "Aktif", className: "border-sky bg-ice text-accent" },
+  completed: { label: "Tamamlandı", className: "border-success/40 bg-success/15 text-success" },
   network: { label: "Monad Testnet", className: "border-sky bg-ice text-ink" },
 };
 

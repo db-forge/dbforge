@@ -83,7 +83,7 @@ export default function MissionDetailPage() {
   return (
     <AppShell title="Görev" backHref="/explore" immersive flush>
       {/* Cover / sample video */}
-      <div className="relative border-b-[1.5px] border-ink bg-ink">
+      <div className="relative border-b-[1.5px] border-line bg-black">
         {showVideo ? (
           <video
             src={mission.sampleVideoUrl}
@@ -98,7 +98,7 @@ export default function MissionDetailPage() {
             <CoverImage src={mission.coverUrl} alt={mission.title} className="aspect-[16/10] w-full" />
             <button
               onClick={() => setShowVideo(true)}
-              className="absolute right-4 bottom-4 inline-flex items-center gap-2 rounded-full border-[1.5px] border-ink bg-white px-3.5 py-1.5 font-mono text-xs hover:bg-ice"
+              className="absolute right-4 bottom-4 inline-flex items-center gap-2 rounded-full border-[1.5px] border-line bg-surface px-3.5 py-1.5 font-mono text-xs hover:bg-ice"
             >
               <Play className="size-3.5 fill-ink" /> örnek klip
             </button>
@@ -107,7 +107,7 @@ export default function MissionDetailPage() {
         <Link
           href="/explore"
           aria-label="Geri"
-          className="absolute top-4 left-4 grid size-11 place-items-center rounded-full border-[1.5px] border-ink bg-white md:hidden"
+          className="absolute top-4 left-4 grid size-11 place-items-center rounded-full border-[1.5px] border-line bg-surface md:hidden"
         >
           <ChevronLeft className="size-5" />
         </Link>
@@ -117,9 +117,9 @@ export default function MissionDetailPage() {
             toast({ kind: "info", title: saved ? "Kaydedildi" : "Kaydedilenlerden çıkarıldı" });
           }}
           aria-label="Kaydet"
-          className="absolute top-4 right-4 grid size-11 place-items-center rounded-full border-[1.5px] border-ink bg-white hover:bg-ice"
+          className="absolute top-4 right-4 grid size-11 place-items-center rounded-full border-[1.5px] border-line bg-surface hover:bg-ice"
         >
-          <Bookmark className={cn("size-5", mission.isSaved && "fill-primary text-primary")} />
+          <Bookmark className={cn("size-5", mission.isSaved && "fill-accent text-accent")} />
         </button>
       </div>
 
@@ -127,9 +127,9 @@ export default function MissionDetailPage() {
         {/* Title + reward */}
         <div>
           <div className="flex items-center gap-2 text-sm">
-            <Avatar initials={mission.company.initials} className="size-6 border-ink bg-ink text-[9px] text-white" />
+            <Avatar initials={mission.company.initials} className="size-6 border-primary bg-primary text-[9px] text-white" />
             <span className="font-bold">{mission.company.name}</span>
-            <span className="font-mono text-xs text-primary">#{CATEGORY_LABELS[mission.category]}</span>
+            <span className="font-mono text-xs text-accent">#{CATEGORY_LABELS[mission.category]}</span>
             <span className="ml-auto">
               <StatusBadge status={completed ? "completed" : "active"} />
             </span>
@@ -164,8 +164,8 @@ export default function MissionDetailPage() {
           <ul className="mt-3 space-y-2.5">
             {mission.criteria.map((c) => (
               <li key={c} className="flex items-start gap-2.5 text-sm">
-                <span className="mt-0.5 grid size-4 shrink-0 place-items-center rounded-[4px] border-[1.5px] border-ink">
-                  <Check className="size-3 text-primary" strokeWidth={3} />
+                <span className="mt-0.5 grid size-4 shrink-0 place-items-center rounded-[4px] border-[1.5px] border-line">
+                  <Check className="size-3 text-accent" strokeWidth={3} />
                 </span>
                 {c}
               </li>
@@ -190,7 +190,7 @@ export default function MissionDetailPage() {
               <span className="text-success">✓ {mission.myAccepted} kabul</span>
               <span className="text-warning">◐ {mission.myReviewing} incelemede</span>
               {mission.myEarnedMon > 0 && (
-                <span className="ml-auto font-bold text-primary">+{formatMon(mission.myEarnedMon)} MON</span>
+                <span className="ml-auto font-bold text-accent">+{formatMon(mission.myEarnedMon)} MON</span>
               )}
             </p>
             {mySubs && mySubs.length > 0 && (
@@ -216,7 +216,7 @@ export default function MissionDetailPage() {
       </div>
 
       {/* CTA — fixed on mobile, sticky at the column bottom on desktop */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t-[1.5px] border-ink bg-white px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] md:sticky md:mt-6 md:border-t-[1.5px]">
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t-[1.5px] border-line bg-surface px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] md:sticky md:mt-6 md:border-t-[1.5px]">
         <Button size="lg" className="h-14 w-full text-base font-bold" onClick={start} disabled={starting || completed || limitReached}>
           {cta}
         </Button>

@@ -22,11 +22,11 @@ export function LiveMissions() {
             <Link
               key={m.id}
               href={`/mission/${m.id}`}
-              className="group flex items-center gap-4 rounded-2xl border-[1.5px] border-ink bg-white p-4 transition-colors hover:border-primary"
+              className="group flex items-center gap-4 rounded-2xl border-[1.5px] border-line bg-surface p-4 transition-colors hover:border-primary"
             >
               <CoverImage src={m.coverUrl} className="size-18 shrink-0 rounded-xl border-[1.5px] border-sky" />
               <div className="min-w-0 flex-1">
-                <p className="truncate font-bold group-hover:text-primary">{m.title}</p>
+                <p className="truncate font-bold group-hover:text-accent">{m.title}</p>
                 <ProgressBar value={m.acceptedCount} max={m.targetCount} className="mt-2" />
                 <p className="mt-1.5 text-xs text-ink/60 tabular-nums">
                   {m.acceptedCount} / {m.targetCount}
@@ -50,12 +50,12 @@ export function LandingStats() {
     { value: "~1 sn", label: "ödeme süresi" },
   ];
   return (
-    <dl className="mt-10 flex flex-wrap gap-x-10 gap-y-4">
+    <dl className="mx-auto mt-10 grid max-w-3xl grid-cols-3 gap-2 rounded-2xl bg-canvas px-4 py-4 text-center sm:rounded-full sm:px-10">
       {stats.map((s) => (
         <div key={s.label}>
           <dt className="sr-only">{s.label}</dt>
-          <dd className="text-3xl font-bold tracking-tight tabular-nums">{s.value}</dd>
-          <p className="text-sm text-ink/60">{s.label}</p>
+          <dd className="text-xl font-bold tracking-tight text-ink tabular-nums sm:text-2xl">{s.value}</dd>
+          <p className="text-xs text-accent sm:text-sm">{s.label}</p>
         </div>
       ))}
     </dl>

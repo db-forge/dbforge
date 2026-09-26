@@ -24,11 +24,11 @@ function RegistrationCard({ mission, tab, primary }: { mission: MissionPost; tab
   return (
     <Card className="p-4">
       <Link href={`/mission/${mission.id}`} className="group flex items-center gap-3">
-        <CoverImage src={mission.coverUrl} label="" className="size-14 shrink-0 rounded-xl border-[1.5px] border-ink" />
+        <CoverImage src={mission.coverUrl} label="" className="size-14 shrink-0 rounded-xl border-[1.5px] border-line" />
         <div className="min-w-0">
-          <p className="truncate text-lg leading-tight font-bold group-hover:text-primary">{mission.title}</p>
+          <p className="truncate text-lg leading-tight font-bold group-hover:text-accent">{mission.title}</p>
           <p className="mt-0.5 truncate text-sm text-ink/65">
-            {mission.company.name} · <b className="text-primary">{formatMon(mission.rewardMon)} MON</b> / video
+            {mission.company.name} · <b className="text-accent">{formatMon(mission.rewardMon)} MON</b> / video
           </p>
         </div>
       </Link>
@@ -61,7 +61,7 @@ function RegistrationCard({ mission, tab, primary }: { mission: MissionPost; tab
                   {mission.myReviewing > 0 && <span className="text-warning">◐ {mission.myReviewing} incelemede</span>}
                 </span>
                 {mission.myEarnedMon > 0 && (
-                  <span className="font-bold text-primary tabular-nums">+{formatMon(mission.myEarnedMon)} MON</span>
+                  <span className="font-bold text-accent tabular-nums">+{formatMon(mission.myEarnedMon)} MON</span>
                 )}
               </div>
             )
@@ -77,7 +77,7 @@ function RegistrationCard({ mission, tab, primary }: { mission: MissionPost; tab
         </LinkButton>
       )}
       {canUpload && !primary && (
-        <Link href={captureHref} className="mt-3 inline-block text-sm font-bold text-primary underline underline-offset-2">
+        <Link href={captureHref} className="mt-3 inline-block text-sm font-bold text-accent underline underline-offset-2">
           {mission.isRegistered ? "Video yükle →" : "Kayıt ol ve çek →"}
         </Link>
       )}

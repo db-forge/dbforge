@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ConnectWallet } from "@/components/ConnectWallet";
 import { LandingStats, LiveMissions } from "@/components/landing/LiveMissions";
+import { Burst } from "@/components/Burst";
 import { NetworkPill } from "@/components/NetworkPill";
 import { Logo } from "@/components/shell/Logo";
 import { LinkButton } from "@/components/ui/button";
@@ -22,13 +23,13 @@ const NAV = [
 export default function HomePage() {
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="border-b-[1.5px] border-ink bg-white">
+      <header className="border-b-[1.5px] border-line bg-canvas">
         <div className="mx-auto flex h-18 max-w-6xl items-center justify-between gap-4 px-4">
           <div className="flex items-center gap-8">
             <Logo />
             <nav className="hidden items-center gap-6 md:flex">
               {NAV.map((n) => (
-                <Link key={n.href} href={n.href} className="text-[15px] hover:text-primary">
+                <Link key={n.href} href={n.href} className="text-[15px] hover:text-accent">
                   {n.label}
                 </Link>
               ))}
@@ -41,11 +42,13 @@ export default function HomePage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4">
-        <section className="grid items-center gap-12 py-14 md:py-20 lg:grid-cols-2">
-          <div>
-            <h1 className="text-5xl leading-[1.02] font-bold tracking-tight md:text-6xl">
-              Real-world data for <span className="text-primary">Physical AI</span>
+      <main className="flex-1">
+        <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-14 md:py-20 lg:grid-cols-2">
+          <div className="relative">
+            <Burst className="absolute -top-10 right-4 size-16 animate-[spin_24s_linear_infinite] sm:right-16 lg:-top-12" />
+            <p className="font-mono text-xs tracking-wider text-accent uppercase">Physical AI için veri görevleri</p>
+            <h1 className="mt-3 text-5xl leading-[1.02] font-bold tracking-tight md:text-6xl">
+              Real-world data for <span className="text-accent">Physical AI.</span>
             </h1>
             <p className="mt-6 max-w-lg text-lg text-ink/75">
               Şirketler veri görevi açar. İnsanlar telefonlarıyla çeker. AI doğrular. Kabul edilen her örnek Monad
@@ -59,7 +62,6 @@ export default function HomePage() {
                 Görev oluştur
               </LinkButton>
             </div>
-            <LandingStats />
           </div>
 
           <div>
@@ -67,29 +69,35 @@ export default function HomePage() {
               <span className="size-1.5 animate-pulse rounded-full bg-success" /> Canlı görevler
             </MonoLabel>
             <LiveMissions />
-            <Link href="/explore" className="mt-3 inline-block text-sm font-bold text-primary hover:underline">
+            <Link href="/explore" className="mt-3 inline-block text-sm font-bold text-accent hover:underline">
               Tümünü gör →
             </Link>
           </div>
         </section>
 
-        <section id="nasil-calisir" className="scroll-mt-6 pb-20">
-          <ol className="grid overflow-hidden rounded-2xl border-[1.5px] border-ink bg-white sm:grid-cols-2 lg:grid-cols-4">
-            {STEPS.map((s, i) => (
-              <li
-                key={s.title}
-                className="border-ink p-5 not-first:border-t-[1.5px] sm:[&:nth-child(2)]:border-t-0 sm:[&:nth-child(even)]:border-l-[1.5px] lg:not-first:border-t-0 lg:not-first:border-l-[1.5px]"
-              >
-                <span className="font-mono text-xs text-ink/55">0{i + 1}</span>
-                <p className="mt-2 text-lg font-bold">{s.title}</p>
-                <p className="text-sm text-ink/65">{s.text}</p>
-              </li>
-            ))}
-          </ol>
+        {/* Purple accent band */}
+        <section id="nasil-calisir" className="relative scroll-mt-6 overflow-hidden bg-primary py-16 text-white">
+          <Burst className="absolute -right-24 -bottom-24 size-96 fill-black/15" />
+          <div className="relative mx-auto max-w-6xl px-4">
+            <div className="flex items-center gap-3">
+              <h2 className="text-3xl font-bold tracking-tight md:text-4xl">Nasıl çalışır</h2>
+              <Burst className="size-8 fill-canvas" />
+            </div>
+            <ol className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {STEPS.map((s, i) => (
+                <li key={s.title} className="rounded-2xl bg-canvas p-5">
+                  <span className="font-mono text-3xl font-bold text-accent">0{i + 1}</span>
+                  <p className="mt-3 text-lg font-bold text-ink">{s.title}</p>
+                  <p className="text-sm text-ink/65">{s.text}</p>
+                </li>
+              ))}
+            </ol>
+            <LandingStats />
+          </div>
         </section>
       </main>
 
-      <footer className="border-t-[1.5px] border-ink bg-white">
+      <footer className="bg-canvas">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-5 font-mono text-xs text-ink/60">
           <span>DBForge · Data Bounty Forge</span>
           <span>Monad Testnet · chainId 10143</span>

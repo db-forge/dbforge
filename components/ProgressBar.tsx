@@ -24,7 +24,7 @@ export function ProgressBar({
         "w-full overflow-hidden rounded-full bg-sky/60",
         size === "sm" && "h-1.5",
         size === "md" && "h-2.5",
-        size === "lg" && "h-4 border-[1.5px] border-ink bg-ice",
+        size === "lg" && "h-4 border-[1.5px] border-line bg-ice",
         className,
       )}
     >

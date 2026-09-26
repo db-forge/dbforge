@@ -4,7 +4,7 @@ export function Avatar({ initials, className }: { initials: string; className?: 
   return (
     <div
       className={cn(
-        "grid size-10 shrink-0 place-items-center rounded-full border-[1.5px] border-ink bg-sky font-mono text-sm font-bold text-ink",
+        "grid size-10 shrink-0 place-items-center rounded-full border-[1.5px] border-line bg-sky font-mono text-sm font-bold text-ink",
         className,
       )}
     >

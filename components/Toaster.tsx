@@ -21,7 +21,7 @@ export function useToast() {
 }
 
 const ICONS = { success: CheckCircle2, error: XCircle, info: Info };
-const COLORS = { success: "text-success", error: "text-danger", info: "text-primary" };
+const COLORS = { success: "text-success", error: "text-danger", info: "text-accent" };
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -42,7 +42,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             <div
               key={t.id}
               role="status"
-              className="pointer-events-auto flex w-full max-w-sm animate-toast-in items-start gap-3 rounded-2xl border-[1.5px] border-ink bg-white px-4 py-3"
+              className="pointer-events-auto flex w-full max-w-sm animate-toast-in items-start gap-3 rounded-2xl border-[1.5px] border-line bg-surface px-4 py-3"
             >
               <Icon className={cn("mt-0.5 size-5 shrink-0", COLORS[t.kind])} />
               <div className="min-w-0">

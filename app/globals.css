@@ -1,14 +1,19 @@
 @import "tailwindcss";
 
 /* DBForge design tokens (Tailwind v4: tokens live here instead of tailwind.config) */
+/* Dark theme: black canvas, purple as the accent block color. */
 @theme {
-  --color-ink: #27005d;
-  --color-primary: #9400ff;
-  --color-sky: #aed2ff;
-  --color-ice: #e4f1ff;
-  --color-success: #16a34a;
-  --color-danger: #b42318;
-  --color-warning: #d97706;
+  --color-canvas: #07050b; /* page background */
+  --color-surface: #120d1b; /* cards, inputs */
+  --color-ice: #1c1428; /* subtle raised fill: chips, hover, stat boxes */
+  --color-line: #3b2b58; /* 1.5px card borders */
+  --color-sky: #2a1f3d; /* thin dividers, progress track */
+  --color-ink: #f3ecff; /* foreground text */
+  --color-primary: #9400ff; /* fills: buttons, active state, accent blocks */
+  --color-accent: #b866ff; /* purple text on dark (MON figures, links) */
+  --color-success: #22c55e;
+  --color-danger: #f04438;
+  --color-warning: #f79009;
 
   --font-sans: var(--font-grotesk), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, monospace;
@@ -44,8 +49,9 @@
 
 html,
 body {
-  background: var(--color-ice);
+  background: var(--color-canvas);
   color: var(--color-ink);
+  color-scheme: dark;
 }
 
 body {
@@ -54,5 +60,5 @@ body {
 }
 
 ::selection {
-  background: var(--color-sky);
+  background: color-mix(in srgb, var(--color-primary) 55%, transparent);
 }

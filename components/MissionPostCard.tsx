@@ -53,11 +53,11 @@ export function MissionPostCard({
     <article
       className={cn(
         "flex gap-3 px-4 py-4",
-        preview ? "rounded-2xl border-[1.5px] border-ink bg-white" : "border-b-[1.5px] border-sky bg-white",
+        preview ? "rounded-2xl border-[1.5px] border-line bg-surface" : "border-b-[1.5px] border-sky bg-canvas",
         className,
       )}
     >
-      <Avatar initials={mission.company.initials} className="size-11 border-ink bg-ink text-white" />
+      <Avatar initials={mission.company.initials} className="size-11 border-primary bg-primary text-white" />
       <div className="min-w-0 flex-1">
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
@@ -68,7 +68,7 @@ export function MissionPostCard({
                 @{mission.company.handle} · {preview ? "şimdi" : timeAgo(mission.createdAt)}
               </span>
             </p>
-            <p className="mt-0.5 font-mono text-xs text-primary">#{CATEGORY_LABELS[mission.category]}</p>
+            <p className="mt-0.5 font-mono text-xs text-accent">#{CATEGORY_LABELS[mission.category]}</p>
           </div>
           <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-3">
             <span className="inline-flex items-center gap-1 text-xs text-ink/60">
@@ -80,8 +80,8 @@ export function MissionPostCard({
                 Tamamlandı
               </span>
             ) : mission.isRegistered ? (
-              <span className="inline-flex h-8 animate-pop items-center gap-1 rounded-full border-[1.5px] border-ink bg-white px-3.5 text-sm font-bold">
-                Kayıtlı <Check className="size-4 text-primary" />
+              <span className="inline-flex h-8 animate-pop items-center gap-1 rounded-full border-[1.5px] border-line bg-surface px-3.5 text-sm font-bold">
+                Kayıtlı <Check className="size-4 text-accent" />
               </span>
             ) : (
               <Button size="sm" onClick={onRegister} disabled={busy} className="font-bold">
@@ -93,8 +93,8 @@ export function MissionPostCard({
 
         {/* Body */}
         <Link href={detailHref} className="group mt-2 block">
-          <h3 className="text-lg font-bold leading-snug group-hover:text-primary">{mission.title}</h3>
-          <div className="mt-3 overflow-hidden rounded-2xl border-[1.5px] border-ink">
+          <h3 className="text-lg font-bold leading-snug group-hover:text-accent">{mission.title}</h3>
+          <div className="mt-3 overflow-hidden rounded-2xl border-[1.5px] border-line">
             <CoverImage
               src={mission.coverUrl}
               alt={mission.title}
@@ -105,7 +105,7 @@ export function MissionPostCard({
 
         {/* Personal progress — only after registering */}
         {mission.isRegistered && !completed && (
-          <div className="mt-3 animate-toast-in rounded-xl border-[1.5px] border-ink bg-white px-3.5 py-3">
+          <div className="mt-3 animate-toast-in rounded-xl border-[1.5px] border-line bg-surface px-3.5 py-3">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-4">
               <div className="min-w-0 flex-1">
                 <div className="mb-1.5 flex items-center justify-between text-xs">
@@ -119,7 +119,7 @@ export function MissionPostCard({
               {mission.myUploads < mission.perUserLimit ? (
                 <Link
                   href={preview ? "#" : `/mission/${mission.id}/capture`}
-                  className="inline-flex shrink-0 items-center gap-1 text-sm font-bold text-primary underline underline-offset-2"
+                  className="inline-flex shrink-0 items-center gap-1 text-sm font-bold text-accent underline underline-offset-2"
                 >
                   Kayda başla <ArrowRight className="size-4" />
                 </Link>
@@ -141,7 +141,7 @@ export function MissionPostCard({
             aria-label={mission.isSaved ? "Kaydedilenlerden çıkar" : "Kaydet"}
             className="-mr-2 grid size-9 place-items-center rounded-full hover:bg-ice"
           >
-            <Bookmark className={cn("size-5", mission.isSaved ? "fill-primary text-primary" : "text-ink")} />
+            <Bookmark className={cn("size-5", mission.isSaved ? "fill-accent text-accent" : "text-ink")} />
           </button>
         </div>
       </div>
@@ -151,7 +151,7 @@ export function MissionPostCard({
 
 export function MissionPostCardSkeleton() {
   return (
-    <div className="flex gap-3 border-b-[1.5px] border-sky bg-white px-4 py-4">
+    <div className="flex gap-3 border-b-[1.5px] border-sky bg-canvas px-4 py-4">
       <Skeleton className="size-11 rounded-full" />
       <div className="flex-1">
         <div className="flex justify-between gap-3">

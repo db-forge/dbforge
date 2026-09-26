@@ -35,13 +35,13 @@ export default function BuyerDashboardPage() {
               return (
                 <Link key={m.id} href={`/buyer/missions/${m.id}`} className="group">
                   <Card className="overflow-hidden transition-colors group-hover:border-primary">
-                    <img src={m.coverUrl} alt="" className="aspect-[16/9] w-full border-b-[1.5px] border-ink object-cover" />
+                    <img src={m.coverUrl} alt="" className="aspect-[16/9] w-full border-b-[1.5px] border-line object-cover" />
                     <div className="p-4">
                       <div className="flex items-center justify-between gap-2">
                         <span className="truncate font-mono text-xs text-ink/60">{m.company.name}</span>
                         <StatusBadge status={complete ? "completed" : "active"} />
                       </div>
-                      <p className="mt-1 truncate text-lg font-bold group-hover:text-primary">{m.title}</p>
+                      <p className="mt-1 truncate text-lg font-bold group-hover:text-accent">{m.title}</p>
                       <div className="mt-3 flex items-baseline justify-between">
                         <span className="font-bold tabular-nums">
                           {m.acceptedCount}

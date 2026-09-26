@@ -78,7 +78,7 @@ export function ConnectWallet({ compact = false, label }: { compact?: boolean; l
         onClick={connectWallet}
         disabled={isPending}
         className={cn(
-          "inline-flex h-10 shrink-0 items-center gap-2 border-[1.5px] border-ink bg-white px-4 text-sm font-bold hover:bg-ice disabled:opacity-50",
+          "inline-flex h-10 shrink-0 items-center gap-2 border-[1.5px] border-line bg-surface px-4 text-sm font-bold hover:bg-ice disabled:opacity-50",
           compact ? "rounded-full" : "rounded-xl",
         )}
       >
@@ -104,7 +104,7 @@ export function ConnectWallet({ compact = false, label }: { compact?: boolean; l
       <button
         onClick={() => setOpen((o) => !o)}
         className={cn(
-          "flex h-10 items-center gap-1.5 border-[1.5px] border-ink bg-white px-3.5 font-mono text-sm hover:bg-ice",
+          "flex h-10 items-center gap-1.5 border-[1.5px] border-line bg-surface px-3.5 font-mono text-sm hover:bg-ice",
           compact ? "rounded-full" : "rounded-xl",
         )}
       >
@@ -114,12 +114,12 @@ export function ConnectWallet({ compact = false, label }: { compact?: boolean; l
             <span className="text-ink/40">·</span>
           </>
         )}
-        <span className="font-bold text-primary tabular-nums">{balance}</span>
-        <span className="text-xs font-bold text-primary">MON</span>
+        <span className="font-bold text-accent tabular-nums">{balance}</span>
+        <span className="text-xs font-bold text-accent">MON</span>
         {!compact && <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} />}
       </button>
       {open && (
-        <div className="absolute right-0 z-40 mt-2 w-56 overflow-hidden rounded-2xl border-[1.5px] border-ink bg-white p-1.5">
+        <div className="absolute right-0 z-40 mt-2 w-56 overflow-hidden rounded-2xl border-[1.5px] border-line bg-surface p-1.5">
           <p className="px-3 pt-1.5 pb-2 font-mono text-[11px] text-ink/60">{shortAddr(address, 6, 6)}</p>
           <Link
             href="/wallet"
@@ -133,7 +133,7 @@ export function ConnectWallet({ compact = false, label }: { compact?: boolean; l
               disconnect();
               setOpen(false);
             }}
-            className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-danger hover:bg-red-50"
+            className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-danger hover:bg-danger/15"
           >
             <LogOut className="size-4" /> Bağlantıyı kes
           </button>

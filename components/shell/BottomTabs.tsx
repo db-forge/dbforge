@@ -11,7 +11,7 @@ export function BottomTabs({ hidden = false }: { hidden?: boolean }) {
   const items = NAV_ITEMS.filter((i) => i.mobile);
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t-[1.5px] border-ink bg-white pb-[env(safe-area-inset-bottom)] md:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t-[1.5px] border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden">
       {items.map(({ href, label, icon: Icon }) => {
         const active = isActive(pathname, href);
         return (
@@ -20,7 +20,7 @@ export function BottomTabs({ hidden = false }: { hidden?: boolean }) {
             href={href}
             className={cn(
               "flex flex-col items-center gap-0.5 py-2.5 text-xs",
-              active ? "font-bold text-primary" : "text-ink/70",
+              active ? "font-bold text-accent" : "text-ink/70",
             )}
           >
             <Icon className="size-5" strokeWidth={active ? 2.4 : 1.8} />

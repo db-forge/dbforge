@@ -30,7 +30,7 @@ export function RightPanel() {
           e.preventDefault();
           router.push(q.trim() ? `/explore?q=${encodeURIComponent(q.trim())}` : "/explore");
         }}
-        className="flex h-11 items-center gap-2 rounded-full border-[1.5px] border-ink bg-white px-4 focus-within:border-primary"
+        className="flex h-11 items-center gap-2 rounded-full border-[1.5px] border-line bg-surface px-4 focus-within:border-primary"
       >
         <Search className="size-4 text-ink/60" />
         <input
@@ -42,17 +42,17 @@ export function RightPanel() {
       </form>
 
       <Link href="/wallet" className="block">
-        <Card className="p-4 transition-colors hover:border-primary">
+        <Card className="border-primary bg-primary p-4 text-white transition-colors hover:bg-[#a426ff]">
           <div className="flex items-center justify-between">
-            <MonoLabel>Cüzdan</MonoLabel>
-            <NetworkPill />
+            <MonoLabel className="text-white/75">Cüzdan</MonoLabel>
+            <NetworkPill className="border-white/70 text-white" />
           </div>
           {wallet.loading || !wallet.data ? (
-            <Skeleton className="mt-3 h-9 w-40" />
+            <Skeleton className="mt-3 h-9 w-40 bg-white/20" />
           ) : (
             <>
-              <MonAmount value={wallet.data.balanceMon} size="lg" className="mt-2 block" />
-              <p className="mt-1 text-xs text-ink/65">
+              <MonAmount value={wallet.data.balanceMon} size="lg" className="mt-2 block text-white" />
+              <p className="mt-1 text-xs text-white/80">
                 Bu hafta +{formatMon(wallet.data.earnedWeekMon)} · {wallet.data.accepted} kabul
               </p>
             </>
@@ -75,7 +75,7 @@ export function RightPanel() {
               <li key={m.id}>
                 <Link href={`/mission/${m.id}`} className="group block">
                   <div className="mb-1.5 flex items-center justify-between gap-2 text-sm">
-                    <span className="truncate font-medium group-hover:text-primary">{m.title}</span>
+                    <span className="truncate font-medium group-hover:text-accent">{m.title}</span>
                     <span className="shrink-0 font-mono text-xs tabular-nums">
                       {m.myUploads}/{m.perUserLimit}
                     </span>
@@ -86,7 +86,7 @@ export function RightPanel() {
             ))}
           </ul>
         )}
-        <Link href="/registered" className="mt-3 inline-block text-sm font-bold text-primary underline underline-offset-2">
+        <Link href="/registered" className="mt-3 inline-block text-sm font-bold text-accent underline underline-offset-2">
           Tümünü gör
         </Link>
       </Card>
@@ -100,7 +100,7 @@ export function RightPanel() {
             {topPaying.map((m) => (
               <li key={m.id}>
                 <Link href={`/mission/${m.id}`} className="group flex items-center justify-between gap-3">
-                  <span className="truncate text-sm group-hover:text-primary">{m.title}</span>
+                  <span className="truncate text-sm group-hover:text-accent">{m.title}</span>
                   <MonAmount value={m.rewardMon} size="sm" />
                 </Link>
               </li>

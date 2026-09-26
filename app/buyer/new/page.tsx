@@ -25,7 +25,7 @@ const DEFAULT_CRITERIA = [
 ];
 
 const inputClass =
-  "w-full rounded-xl border-[1.5px] border-ink bg-white px-4 py-3 text-[15px] outline-none placeholder:text-ink/40 focus:border-primary";
+  "w-full rounded-xl border-[1.5px] border-line bg-surface px-4 py-3 text-[15px] outline-none placeholder:text-ink/40 focus:border-primary";
 
 /** Number input with a unit ("MON", "video") inside the box. */
 function UnitInput({
@@ -42,7 +42,7 @@ function UnitInput({
   className?: string;
 }) {
   return (
-    <div className="flex items-center rounded-xl border-[1.5px] border-ink bg-white px-4 focus-within:border-primary">
+    <div className="flex items-center rounded-xl border-[1.5px] border-line bg-surface px-4 focus-within:border-primary">
       <input
         type="number"
         min="0"
@@ -205,8 +205,8 @@ export default function NewMissionPage() {
                   type="button"
                   onClick={() => setCategory(c)}
                   className={cn(
-                    "h-10 rounded-full border-[1.5px] border-ink px-4 text-sm font-medium",
-                    category === c ? "bg-ink text-white" : "bg-white hover:bg-ice",
+                    "h-10 rounded-full border-[1.5px] border-line px-4 text-sm font-medium",
+                    category === c ? "border-primary bg-primary text-white" : "bg-surface hover:bg-ice",
                   )}
                 >
                   {CATEGORY_LABELS[c]}
@@ -220,14 +220,14 @@ export default function NewMissionPage() {
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
-                className="relative grid h-full min-h-36 w-full place-items-center overflow-hidden rounded-xl border-[1.5px] border-dashed border-ink bg-white text-sm text-ink/70 hover:border-primary hover:text-primary"
+                className="relative grid h-full min-h-36 w-full place-items-center overflow-hidden rounded-xl border-[1.5px] border-dashed border-line bg-surface text-sm text-ink/70 hover:border-primary hover:text-accent"
               >
                 {coverLoading ? (
-                  <Loader2 className="size-5 animate-spin text-primary" />
+                  <Loader2 className="size-5 animate-spin text-accent" />
                 ) : cover ? (
                   <>
                     <CoverImage src={cover} className="absolute inset-0 size-full" />
-                    <span className="absolute right-2 bottom-2 rounded-full border-[1.5px] border-ink bg-white px-2.5 py-0.5 text-xs text-ink">
+                    <span className="absolute right-2 bottom-2 rounded-full border-[1.5px] border-line bg-surface px-2.5 py-0.5 text-xs text-ink">
                       Değiştir
                     </span>
                   </>
@@ -265,7 +265,7 @@ export default function NewMissionPage() {
               {criteria.map((c, i) => (
                 <li
                   key={`${c}-${i}`}
-                  className="inline-flex items-center gap-1 rounded-full border-[1.5px] border-sky bg-white py-1 pr-1 pl-3 text-sm"
+                  className="inline-flex items-center gap-1 rounded-full border-[1.5px] border-sky bg-surface py-1 pr-1 pl-3 text-sm"
                 >
                   {c}
                   <button
@@ -300,7 +300,7 @@ export default function NewMissionPage() {
 
           <div className="grid gap-4 sm:grid-cols-3">
             <Field label="Video başı ödül" hint={errors.reward ?? undefined}>
-              <UnitInput value={reward} onChange={setReward} unit="MON" step="0.01" className="font-bold text-primary" />
+              <UnitInput value={reward} onChange={setReward} unit="MON" step="0.01" className="font-bold text-accent" />
             </Field>
             <Field label="Hedef video" hint={errors.target ?? undefined}>
               <UnitInput value={target} onChange={setTarget} unit="video" step="1" />
@@ -311,14 +311,14 @@ export default function NewMissionPage() {
           </div>
 
           {/* Lock summary + CTA */}
-          <div className="rounded-2xl border-[1.5px] border-ink bg-white p-5">
+          <div className="rounded-2xl bg-primary p-5 text-white">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <p className="text-sm text-ink/65">Kontrata kilitlenecek</p>
-                <p className="text-2xl font-bold tracking-tight text-primary tabular-nums sm:text-3xl">{lockText}</p>
+                <p className="text-sm text-white/75">Kontrata kilitlenecek</p>
+                <p className="text-2xl font-bold tracking-tight tabular-nums sm:text-3xl">{lockText}</p>
               </div>
               {!createdId && (
-                <Button size="lg" className="h-13 shrink-0 px-6 font-bold" onClick={submit} disabled={!valid || busy}>
+                <Button variant="ink" size="lg" className="h-13 shrink-0 px-6 font-bold" onClick={submit} disabled={!valid || busy}>
                   {busy && <Loader2 className="size-5 animate-spin" />}
                   {!isConnected ? "Cüzdan bağla ve devam et" : "Bütçeyi kilitle ve paylaş"}
                 </Button>
@@ -326,11 +326,11 @@ export default function NewMissionPage() {
             </div>
             {tx.stage !== "idle" && <TxStatus state={tx} className="mt-4 border-sky" />}
             {tx.stage === "error" && (
-              <Button variant="outline" className="mt-3 w-full" onClick={() => setTx({ stage: "idle" })}>
+              <Button variant="ink" className="mt-3 w-full" onClick={() => setTx({ stage: "idle" })}>
                 <RotateCcw className="size-4" /> Tekrar dene
               </Button>
             )}
-            <p className="mt-3 font-mono text-[11px] text-ink/55">
+            <p className="mt-3 font-mono text-[11px] text-white/70">
               Bütçe sadece kabul edilen videolara ödenir, kalanı iade edilebilir. Demo: başlıkta &ldquo;fail&rdquo;
               geçerse işlem hata verir.
             </p>
@@ -346,7 +346,7 @@ export default function NewMissionPage() {
             <Card className="animate-toast-in border-success p-5">
               <p className="text-lg font-bold">Görev yayında</p>
               <p className="mt-1 text-sm text-ink/70">
-                <b className="text-primary">{formatMon(budget)} MON</b> kontratta kilitlendi.
+                <b className="text-accent">{formatMon(budget)} MON</b> kontratta kilitlendi.
               </p>
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
                 <LinkButton href={`/buyer/missions/${createdId}`}>

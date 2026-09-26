@@ -54,7 +54,7 @@ export default function BuyerMissionPage() {
 
   if (loading && !data) {
     return (
-      <BuyerShell crumb={<Link href="/buyer" className="hover:text-primary">Görevlerim</Link>}>
+      <BuyerShell crumb={<Link href="/buyer" className="hover:text-accent">Görevlerim</Link>}>
         <Skeleton className="h-10 w-80" />
         <Skeleton className="mt-6 h-40 w-full rounded-2xl" />
         <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -69,7 +69,7 @@ export default function BuyerMissionPage() {
 
   if (!data) {
     return (
-      <BuyerShell crumb={<Link href="/buyer" className="hover:text-primary">Görevlerim</Link>}>
+      <BuyerShell crumb={<Link href="/buyer" className="hover:text-accent">Görevlerim</Link>}>
         <EmptyState
           icon={FileQuestion}
           title="Görev bulunamadı"
@@ -95,7 +95,7 @@ export default function BuyerMissionPage() {
   }
 
   return (
-    <BuyerShell crumb={<Link href="/buyer" className="hover:text-primary">Görevlerim</Link>}>
+    <BuyerShell crumb={<Link href="/buyer" className="hover:text-accent">Görevlerim</Link>}>
       {/* Title row */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-1">
@@ -108,7 +108,7 @@ export default function BuyerMissionPage() {
               <BadgeCheck className="size-4" /> DATASET COMPLETE
             </span>
           ) : (
-            <span className="inline-flex h-9 items-center gap-1.5 rounded-full border-[1.5px] border-ink bg-white px-3.5 text-sm font-bold">
+            <span className="inline-flex h-9 items-center gap-1.5 rounded-full border-[1.5px] border-line bg-surface px-3.5 text-sm font-bold">
               <span className="size-2 rounded-full bg-primary" /> Aktif
             </span>
           )}
@@ -143,7 +143,7 @@ export default function BuyerMissionPage() {
       {/* Stats */}
       <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat label="Harcanan bütçe">
-          <span className="text-primary">
+          <span className="text-accent">
             {formatMon(data.spentMon, 1)} / {formatMon(data.budgetMon, 0)} MON
           </span>
         </Stat>
@@ -158,7 +158,7 @@ export default function BuyerMissionPage() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[620px] text-sm">
               <thead>
-                <tr className="border-b-[1.5px] border-ink text-left font-mono text-[11px] tracking-wider text-ink/60 uppercase">
+                <tr className="border-b-[1.5px] border-line text-left font-mono text-[11px] tracking-wider text-ink/60 uppercase">
                   <th className="px-5 py-3 font-medium">Klip</th>
                   <th className="px-3 py-3 font-medium">Katkıcı</th>
                   <th className="px-3 py-3 font-medium">AI skoru</th>
@@ -177,7 +177,7 @@ export default function BuyerMissionPage() {
                         href={addressUrl(s.contributorAddress)}
                         target="_blank"
                         rel="noreferrer"
-                        className="font-mono text-[13px] hover:text-primary"
+                        className="font-mono text-[13px] hover:text-accent"
                       >
                         {shortAddr(s.contributorAddress, 4, 4)}
                       </a>
@@ -192,7 +192,7 @@ export default function BuyerMissionPage() {
                           href={txUrl(s.txHash)}
                           target="_blank"
                           rel="noreferrer"
-                          className="font-mono text-[13px] text-primary underline underline-offset-2"
+                          className="font-mono text-[13px] text-accent underline underline-offset-2"
                         >
                           {shortAddr(s.txHash, 5, 2)}
                         </a>
@@ -244,10 +244,10 @@ export default function BuyerMissionPage() {
             </p>
           )}
           <div className="mt-4 flex justify-between border-t border-sky pt-3 text-xs">
-            <Link href={`/mission/${mission.id}`} className="text-primary hover:underline">
+            <Link href={`/mission/${mission.id}`} className="text-accent hover:underline">
               Akıştaki post →
             </Link>
-            <Link href="/buyer/new" className="text-primary hover:underline">
+            <Link href="/buyer/new" className="text-accent hover:underline">
               Yeni görev aç →
             </Link>
           </div>

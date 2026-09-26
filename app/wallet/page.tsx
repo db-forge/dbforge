@@ -33,8 +33,8 @@ export default function WalletPage() {
     return (
       <AppShell title="Cüzdan" actions={<NetworkPill />}>
         <Card className="mt-2 p-8 text-center">
-          <div className="mx-auto grid size-14 place-items-center rounded-full border-[1.5px] border-ink bg-ice">
-            <Wallet className="size-6 text-primary" />
+          <div className="mx-auto grid size-14 place-items-center rounded-full border-[1.5px] border-line bg-ice">
+            <Wallet className="size-6 text-accent" />
           </div>
           <p className="mt-4 text-xl font-bold">Cüzdanını bağla</p>
           <p className="mx-auto mt-1 max-w-sm text-sm text-ink/70">
@@ -53,7 +53,7 @@ export default function WalletPage() {
     <AppShell title="Cüzdan" actions={<NetworkPill />}>
       <div className="space-y-4">
         {wrongNetwork && (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border-[1.5px] border-warning bg-amber-50 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border-[1.5px] border-warning bg-warning/15 p-4">
             <div className="flex items-start gap-3">
               <AlertTriangle className="mt-0.5 size-5 shrink-0 text-warning" />
               <div>
@@ -67,9 +67,9 @@ export default function WalletPage() {
           </div>
         )}
 
-        <Card className="p-5 sm:p-6">
+        <Card className="border-primary bg-primary p-5 text-white sm:p-6">
           <div className="flex items-center gap-1">
-            <p className="min-w-0 truncate font-mono text-sm text-ink/70">
+            <p className="min-w-0 truncate font-mono text-sm text-white/80">
               {shortAddr(address, 4, 4)} · {connectorName ?? "Cüzdan"}
             </p>
             <button
@@ -78,7 +78,7 @@ export default function WalletPage() {
                 navigator.clipboard?.writeText(address ?? "");
                 toast({ kind: "info", title: "Adres kopyalandı" });
               }}
-              className="grid size-8 shrink-0 place-items-center rounded-full hover:bg-ice"
+              className="grid size-8 shrink-0 place-items-center rounded-full hover:bg-black/20"
             >
               <Copy className="size-3.5" />
             </button>
@@ -87,33 +87,33 @@ export default function WalletPage() {
               target="_blank"
               rel="noreferrer"
               aria-label="Explorer'da aç"
-              className="grid size-8 shrink-0 place-items-center rounded-full hover:bg-ice"
+              className="grid size-8 shrink-0 place-items-center rounded-full hover:bg-black/20"
             >
               <ExternalLink className="size-3.5" />
             </a>
           </div>
 
           {loading && !wallet ? (
-            <Skeleton className="mt-2 h-14 w-48" />
+            <Skeleton className="mt-2 h-14 w-48 bg-white/20" />
           ) : (
-            <MonAmount value={wallet?.balanceMon ?? 0} size="xl" className="mt-1 block text-6xl" />
+            <MonAmount value={wallet?.balanceMon ?? 0} size="xl" className="mt-1 block text-6xl text-white" />
           )}
-          <p className="mt-2 text-ink/75">
-            Bu hafta <b className="text-primary">+{formatMon(wallet?.earnedWeekMon ?? 0)} MON</b> kazandın
+          <p className="mt-2 text-white/85">
+            Bu hafta <b className="text-white">+{formatMon(wallet?.earnedWeekMon ?? 0)} MON</b> kazandın
           </p>
           {onchainBalance !== null && (
-            <p className="mt-1 font-mono text-[11px] text-ink/50">zincir bakiyesi {formatMon(onchainBalance, 4)} MON</p>
+            <p className="mt-1 font-mono text-[11px] text-white/60">zincir bakiyesi {formatMon(onchainBalance, 4)} MON</p>
           )}
 
           <div className="mt-5 grid grid-cols-3 gap-2.5">
             {[
               { label: "gönderim", value: wallet?.submitted, className: "" },
-              { label: "kabul", value: wallet?.accepted, className: "text-success" },
-              { label: "red", value: wallet?.rejected, className: "text-danger" },
+              { label: "kabul", value: wallet?.accepted, className: "" },
+              { label: "red", value: wallet?.rejected, className: "" },
             ].map((s) => (
-              <div key={s.label} className="rounded-xl bg-ice px-2 py-3 text-center">
+              <div key={s.label} className="rounded-xl bg-black/25 px-2 py-3 text-center">
                 <p className={`text-2xl font-bold tabular-nums ${s.className}`}>{s.value ?? "–"}</p>
-                <p className="text-xs text-ink/65">{s.label}</p>
+                <p className="text-xs text-white/75">{s.label}</p>
               </div>
             ))}
           </div>
@@ -146,12 +146,12 @@ export default function WalletPage() {
                         href={txUrl(p.hash)}
                         target="_blank"
                         rel="noreferrer"
-                        className="font-mono text-xs text-primary underline underline-offset-2"
+                        className="font-mono text-xs text-accent underline underline-offset-2"
                       >
                         tx {shortAddr(p.hash, 4, 2)} · {timeAgo(p.createdAt)}
                       </a>
                     </div>
-                    <span className="shrink-0 text-lg font-bold text-primary tabular-nums">
+                    <span className="shrink-0 text-lg font-bold text-accent tabular-nums">
                       +{formatMon(p.amountMon)}
                     </span>
                   </li>

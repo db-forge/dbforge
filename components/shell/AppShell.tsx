@@ -56,14 +56,14 @@ export function AppShell({
       <SideNav />
       <main
         className={cn(
-          "min-w-0 flex-1 bg-ice md:border-x-[1.5px] md:border-ink md:bg-white",
+          "min-w-0 flex-1 bg-canvas md:border-x-[1.5px] md:border-line",
           immersive ? "pb-28 md:pb-10" : "pb-24 md:pb-10",
           wide ? "max-w-[900px]" : "max-w-[600px]",
         )}
       >
         <header
           className={cn(
-            "sticky top-0 z-20 border-b-[1.5px] border-ink bg-white/95 backdrop-blur",
+            "sticky top-0 z-20 border-b-[1.5px] border-line bg-canvas/85 backdrop-blur",
             immersive && "hidden md:block",
           )}
         >

@@ -141,8 +141,8 @@ export default function SubmissionPage() {
           <div className="flex flex-1 flex-col items-center justify-center py-8 text-center">
             <span
               className={cn(
-                "grid size-24 animate-pop place-items-center rounded-full border-[1.5px] bg-white",
-                accepted ? "border-ink" : rejected ? "border-danger text-danger" : "border-warning text-warning",
+                "grid size-24 animate-pop place-items-center rounded-full border-[1.5px] bg-surface",
+                accepted ? "border-line" : rejected ? "border-danger text-danger" : "border-warning text-warning",
               )}
             >
               {accepted ? (
@@ -168,7 +168,7 @@ export default function SubmissionPage() {
                   href={txUrl(sub.txHash)}
                   target="_blank"
                   rel="noreferrer"
-                  className="mt-4 inline-flex h-9 items-center rounded-xl border-[1.5px] border-ink bg-white px-3.5 font-mono text-xs hover:border-primary hover:text-primary"
+                  className="mt-4 inline-flex h-9 items-center rounded-xl border-[1.5px] border-line bg-surface px-3.5 font-mono text-xs hover:border-primary hover:text-accent"
                 >
                   tx {shortAddr(sub.txHash, 6, 4)} · {settleSec(sub.txHash)} sn
                 </a>
@@ -178,7 +178,7 @@ export default function SubmissionPage() {
             {rejected && (
               <>
                 <p className="mt-2 text-2xl font-bold">Bu video kabul edilmedi</p>
-                <p className="mt-2 max-w-sm rounded-xl border-[1.5px] border-danger/40 bg-red-50 px-4 py-3 text-sm text-danger">
+                <p className="mt-2 max-w-sm rounded-xl border-[1.5px] border-danger/40 bg-danger/15 px-4 py-3 text-sm text-danger">
                   {sub.rejectReason}
                 </p>
                 <p className="mt-3 font-mono text-xs text-ink/55">Reddedilen videolar yükleme limitinden düşülmez.</p>
@@ -188,9 +188,9 @@ export default function SubmissionPage() {
             {!accepted && !rejected && (
               <>
                 <p className="mt-2 text-2xl font-bold">Manuel incelemeye alındı</p>
-                <p className="mt-2 max-w-sm rounded-xl border-[1.5px] border-warning/50 bg-amber-50 px-4 py-3 text-sm text-ink/80">
+                <p className="mt-2 max-w-sm rounded-xl border-[1.5px] border-warning/50 bg-warning/15 px-4 py-3 text-sm text-ink/80">
                   AI skoru kabul eşiğine yakın. Moderatör onaylarsa{" "}
-                  <b className="text-primary">{formatMon(sub.rewardMon)} MON</b> otomatik gönderilir.
+                  <b className="text-accent">{formatMon(sub.rewardMon)} MON</b> otomatik gönderilir.
                 </p>
               </>
             )}
@@ -198,7 +198,7 @@ export default function SubmissionPage() {
 
           <div className="space-y-3 pb-2">
             {accepted && (
-              <div className="flex items-center justify-between rounded-2xl border-[1.5px] border-ink bg-white px-4 py-3">
+              <div className="flex items-center justify-between rounded-2xl border-[1.5px] border-line bg-surface px-4 py-3">
                 <span>Bakiye</span>
                 {wallet ? <MonAmount value={wallet.balanceMon} size="sm" /> : <Skeleton className="h-5 w-20" />}
               </div>
@@ -217,7 +217,7 @@ export default function SubmissionPage() {
                 href={txUrl(sub.txHash)}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex h-14 w-full items-center justify-center rounded-full border-[1.5px] border-ink bg-white font-bold hover:bg-ice"
+                className="inline-flex h-14 w-full items-center justify-center rounded-full border-[1.5px] border-line bg-surface font-bold hover:bg-ice"
               >
                 Explorer&apos;da gör
               </a>
@@ -251,11 +251,11 @@ export default function SubmissionPage() {
           onLoadedMetadata={(e) =>
             setMeta({ sec: e.currentTarget.duration, h: e.currentTarget.videoHeight })
           }
-          className="mt-3 aspect-[16/10] w-full rounded-2xl bg-ink object-cover"
+          className="mt-3 aspect-[16/10] w-full rounded-2xl bg-black object-cover"
         />
 
         <h2 className="mt-6 text-2xl font-bold tracking-tight">Videon kontrol ediliyor…</h2>
-        <ol className="mt-4 divide-y divide-sky rounded-2xl border-[1.5px] border-ink bg-white">
+        <ol className="mt-4 divide-y divide-sky rounded-2xl border-[1.5px] border-line bg-surface">
           {steps.map((text, i) => {
             const st = stepState(i);
             return (
@@ -263,7 +263,7 @@ export default function SubmissionPage() {
                 key={i}
                 className={cn(
                   "flex items-center justify-between gap-3 px-4 py-3.5",
-                  st === "active" && "font-bold text-primary",
+                  st === "active" && "font-bold text-accent",
                   st === "waiting" && "text-ink/40",
                 )}
               >
@@ -288,14 +288,14 @@ export default function SubmissionPage() {
           <div className="mt-10 text-center">
             <button
               onClick={() => setSkip(true)}
-              className="font-mono text-xs text-ink/60 underline underline-offset-4 hover:text-primary"
+              className="font-mono text-xs text-ink/60 underline underline-offset-4 hover:text-accent"
             >
               [ demo: sonuca atla → ]
             </button>
           </div>
         )}
         <p className="mt-6 text-center">
-          <Link href="/registered" className="text-sm text-ink/60 hover:text-primary">
+          <Link href="/registered" className="text-sm text-ink/60 hover:text-accent">
             Arka planda devam etsin → Kayıtlılarım
           </Link>
         </p>

@@ -33,7 +33,7 @@ function Feed() {
       subheader={<FilterTabs options={FILTERS} value={category} onChange={setCategory} variant="responsive" />}
     >
       {query && (
-        <div className="mx-4 mt-3 flex items-center justify-between rounded-full border-[1.5px] border-sky bg-white px-4 py-2 text-sm">
+        <div className="mx-4 mt-3 flex items-center justify-between rounded-full border-[1.5px] border-sky bg-surface px-4 py-2 text-sm">
           <span>
             &ldquo;<b>{query}</b>&rdquo; için sonuçlar
           </span>

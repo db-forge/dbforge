@@ -78,7 +78,7 @@ export function FilterTabs<T extends string>({
             onClick={() => onChange(o.value)}
             className={cn(
               "h-9 shrink-0 rounded-full border-[1.5px] px-4 text-sm font-medium transition-colors",
-              active ? "border-ink bg-ink text-white" : "border-ink bg-white text-ink hover:bg-ice",
+              active ? "border-primary bg-primary text-white" : "border-line bg-surface text-ink hover:bg-ice",
             )}
           >
             {o.label}

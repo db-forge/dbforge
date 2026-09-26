@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import { Providers } from "@/components/Providers";
 import "./globals.css";
@@ -21,6 +21,11 @@ export const metadata: Metadata = {
     "Physical AI şirketleri veri görevi açar, sen telefonla çekersin, AI doğrular, Monad üzerinden anında MON kazanırsın.",
 };
 
+export const viewport: Viewport = {
+  themeColor: "#07050b",
+  colorScheme: "dark",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -28,7 +33,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="tr" className={`${grotesk.variable} ${jetbrains.variable}`}>
-      <body className="min-h-dvh bg-ice font-sans text-ink">
+      <body className="min-h-dvh bg-canvas font-sans text-ink">
         <Providers>{children}</Providers>
       </body>
     </html>

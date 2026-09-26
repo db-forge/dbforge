@@ -234,7 +234,7 @@ export default function CapturePage() {
             key={v.name}
             onClick={() => pickDemo(v.name, v.url)}
             disabled={!!loadingDemo}
-            className="inline-flex h-10 items-center gap-2 rounded-xl border-[1.5px] border-ink bg-white px-3 text-left text-sm hover:bg-ice disabled:opacity-50"
+            className="inline-flex h-10 items-center gap-2 rounded-xl border-[1.5px] border-line bg-surface px-3 text-left text-sm hover:bg-ice disabled:opacity-50"
           >
             {loadingDemo === v.name ? (
               <Loader2 className="size-4 shrink-0 animate-spin" />
@@ -249,14 +249,14 @@ export default function CapturePage() {
         <button
           onClick={() => pickDemo("fail-bottle-drop.mp4", "/demo/bottle-drop.mp4")}
           disabled={!!loadingDemo}
-          className="h-7 rounded-full border border-dashed border-danger/60 px-2.5 font-mono text-[10px] text-danger hover:bg-red-50"
+          className="h-7 rounded-full border border-dashed border-danger/60 px-2.5 font-mono text-[10px] text-danger hover:bg-danger/15"
         >
           demo: red senaryosu
         </button>
         <button
           onClick={() => pickDemo("review-bottle-drop.mp4", "/demo/bottle-drop.mp4")}
           disabled={!!loadingDemo}
-          className="h-7 rounded-full border border-dashed border-warning/60 px-2.5 font-mono text-[10px] text-warning hover:bg-amber-50"
+          className="h-7 rounded-full border border-dashed border-warning/60 px-2.5 font-mono text-[10px] text-warning hover:bg-warning/15"
         >
           demo: inceleme senaryosu
         </button>
@@ -265,7 +265,7 @@ export default function CapturePage() {
   );
 
   return (
-    <div className="fixed inset-0 z-40 bg-ink text-white">
+    <div className="fixed inset-0 z-40 bg-canvas text-white">
       <div className="mx-auto flex h-full max-w-[480px] flex-col px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))]">
         {/* Top bar */}
         <div className="flex h-10 items-center justify-between gap-3">
@@ -320,8 +320,8 @@ export default function CapturePage() {
           {denied && (
             <div className="absolute inset-0 overflow-y-auto bg-ice p-4 text-ink">
               <div className="flex items-center gap-3">
-                <span className="grid size-10 shrink-0 place-items-center rounded-full border-[1.5px] border-ink bg-white">
-                  <CameraOff className="size-5 text-primary" />
+                <span className="grid size-10 shrink-0 place-items-center rounded-full border-[1.5px] border-line bg-surface">
+                  <CameraOff className="size-5 text-accent" />
                 </span>
                 <div>
                   <p className="font-bold">Kamera izni yok</p>
@@ -334,7 +334,7 @@ export default function CapturePage() {
                   setPhase("init");
                   startCamera();
                 }}
-                className="mt-4 w-full text-center text-sm font-bold text-primary underline underline-offset-2"
+                className="mt-4 w-full text-center text-sm font-bold text-accent underline underline-offset-2"
               >
                 Kamerayı tekrar dene
               </button>
@@ -347,10 +347,10 @@ export default function CapturePage() {
                 <span
                   className={cn(
                     "inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 font-mono text-sm font-bold tabular-nums",
-                    phase === "recording" ? "bg-danger text-white" : "bg-white/90 text-ink",
+                    phase === "recording" ? "bg-danger text-white" : "bg-surface/90 text-ink",
                   )}
                 >
-                  <span className={cn("size-2 rounded-full", phase === "recording" ? "animate-pulse bg-white" : "bg-danger")} />
+                  <span className={cn("size-2 rounded-full", phase === "recording" ? "animate-pulse bg-surface" : "bg-danger")} />
                   {fmt(elapsed)}
                 </span>
               </div>
@@ -375,11 +375,11 @@ export default function CapturePage() {
         {/* Duration track: 0 — min 10 — 20 */}
         {!denied && (
           <div className="mt-4">
-            <div className="relative h-1.5 rounded-full bg-white/20">
+            <div className="relative h-1.5 rounded-full bg-surface/20">
               <div
                 className={cn(
                   "h-full rounded-full transition-[width] duration-100",
-                  elapsed >= MIN_SEC ? "bg-success" : "bg-white",
+                  elapsed >= MIN_SEC ? "bg-success" : "bg-surface",
                 )}
                 style={{ width: `${reviewing && fromPicker ? 100 : pct}%` }}
               />
@@ -466,14 +466,14 @@ export default function CapturePage() {
 
       {/* Ready-made video sheet */}
       {sheetOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/60" onClick={() => setSheetOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70" onClick={() => setSheetOpen(false)}>
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-[480px] animate-toast-in rounded-t-3xl border-[1.5px] border-b-0 border-ink bg-ice p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-ink"
+            className="w-full max-w-[480px] animate-toast-in rounded-t-3xl border-[1.5px] border-b-0 border-line bg-ice p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-ink"
           >
             <div className="mb-4 flex items-center justify-between">
               <p className="text-lg font-bold">Hazır video seç</p>
-              <button onClick={() => setSheetOpen(false)} aria-label="Kapat" className="grid size-9 place-items-center rounded-full hover:bg-white">
+              <button onClick={() => setSheetOpen(false)} aria-label="Kapat" className="grid size-9 place-items-center rounded-full hover:bg-surface">
                 <X className="size-5" />
               </button>
             </div>

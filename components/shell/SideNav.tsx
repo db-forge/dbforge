@@ -42,11 +42,11 @@ export function SideNav() {
                 href={href}
                 title={label}
                 className={cn(
-                  "flex items-center gap-4 rounded-full px-3 py-3 text-lg transition-colors hover:bg-white",
+                  "flex items-center gap-4 rounded-full px-3 py-3 text-lg transition-colors hover:bg-surface",
                   active ? "font-bold text-ink" : "text-ink",
                 )}
               >
-                <Icon className={cn("size-6 shrink-0", active && "text-primary")} strokeWidth={active ? 2.4 : 1.8} />
+                <Icon className={cn("size-6 shrink-0", active && "text-accent")} strokeWidth={active ? 2.4 : 1.8} />
                 <span className="hidden lg:inline">{label}</span>
               </Link>
             );
@@ -58,7 +58,7 @@ export function SideNav() {
         </Link>
         <Link
           href="/buyer"
-          className="hidden px-3 font-mono text-xs text-ink/55 hover:text-primary lg:block"
+          className="hidden px-3 font-mono text-xs text-ink/55 hover:text-accent lg:block"
         >
           Şirket paneli →
         </Link>

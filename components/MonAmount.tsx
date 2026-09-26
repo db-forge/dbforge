@@ -22,7 +22,7 @@ export function MonAmount({
   className?: string;
 }) {
   return (
-    <span className={cn("font-bold tracking-tight text-primary tabular-nums", SIZES[size], className)}>
+    <span className={cn("font-bold tracking-tight text-accent tabular-nums", SIZES[size], className)}>
       {sign && "+"}
       {formatMon(value, digits)}
       <span className="ml-1 text-[0.6em] font-bold">MON</span>

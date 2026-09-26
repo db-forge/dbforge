@@ -17,7 +17,7 @@ export function TxStatus({ state, className }: { state: TxState; className?: str
   const failed = state.stage === "error";
 
   return (
-    <div className={cn("rounded-2xl border-[1.5px] border-ink bg-white p-4", className)}>
+    <div className={cn("rounded-2xl border-[1.5px] border-line bg-surface p-4", className)}>
       <ol className="space-y-3">
         {STEPS.map((step, i) => {
           const idx = i + 1;
@@ -31,7 +31,7 @@ export function TxStatus({ state, className }: { state: TxState; className?: str
                 className={cn(
                   "grid size-7 shrink-0 place-items-center rounded-full border-[1.5px]",
                   done || isSuccess ? "border-success bg-success text-white" : "border-sky text-ink/40",
-                  active && !isSuccess && "border-primary text-primary",
+                  active && !isSuccess && "border-primary text-accent",
                   errorHere && "border-danger bg-danger text-white",
                 )}
               >
@@ -64,7 +64,7 @@ export function TxStatus({ state, className }: { state: TxState; className?: str
         </div>
       )}
       {failed && (
-        <p className="mt-4 rounded-xl border border-danger/40 bg-red-50 px-3 py-2 text-sm text-danger">
+        <p className="mt-4 rounded-xl border border-danger/40 bg-danger/15 px-3 py-2 text-sm text-danger">
           {state.error ?? "İşlem başarısız oldu."}
         </p>
       )}
