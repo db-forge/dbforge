@@ -10,7 +10,7 @@ import { useToast } from "@/components/Toaster";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Card, SectionTitle, Skeleton } from "@/components/ui/card";
 import { getWallet } from "@/lib/frontend/api";
-import { useApi, useIsClient, useWalletStatus } from "@/lib/frontend/hooks";
+import { useApi, useDisplayBalance, useIsClient, useWalletStatus } from "@/lib/frontend/hooks";
 import { addressUrl, formatMon, shortAddr, timeAgo, txUrl } from "@/lib/frontend/utils";
 
 export default function WalletPage() {
@@ -20,6 +20,7 @@ export default function WalletPage() {
   const { connectWallet, isPending } = useConnectWallet();
   const { switchToMonad, isPending: switching } = useSwitchToMonad();
   const { data: wallet, loading } = useApi(getWallet);
+  const balance = useDisplayBalance(wallet?.balanceMon);
 
   if (!isClient || isConnecting) {
     return (
@@ -96,7 +97,7 @@ export default function WalletPage() {
           {loading && !wallet ? (
             <Skeleton className="mt-2 h-14 w-48 bg-white/20" />
           ) : (
-            <MonAmount value={wallet?.balanceMon ?? 0} size="xl" className="mt-1 block text-6xl" />
+            <MonAmount value={balance ?? 0} size="xl" className="mt-1 block text-6xl" />
           )}
           <p className="mt-2 text-white/85">
             Bu hafta <b className="text-lemon">+{formatMon(wallet?.earnedWeekMon ?? 0)} MON</b> kazandın

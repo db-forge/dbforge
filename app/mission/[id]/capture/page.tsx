@@ -8,7 +8,7 @@ import { MonAmount } from "@/components/MonAmount";
 import { useToast } from "@/components/Toaster";
 import { Button } from "@/components/ui/button";
 import { getMission, uploadSubmission } from "@/lib/frontend/api";
-import { useApi, useIsClient } from "@/lib/frontend/hooks";
+import { useApi, useIsClient, useWalletStatus } from "@/lib/frontend/hooks";
 import { cn, randomHex } from "@/lib/frontend/utils";
 import { DEMO_VIDEOS } from "@/lib/mock/missions";
 
@@ -53,6 +53,7 @@ export default function CapturePage() {
   const toast = useToast();
   const { data: mission } = useApi(() => getMission(id), [id]);
   const challenge = useChallenge();
+  const { address } = useWalletStatus();
 
   const [phase, setPhase] = useState<Phase>("init");
   const [facing, setFacing] = useState<"environment" | "user">("environment");
@@ -192,7 +193,7 @@ export default function CapturePage() {
     if (!file) return;
     setPhase("uploading");
     try {
-      const sub = await uploadSubmission(id, file);
+      const sub = await uploadSubmission(id, file, address);
       stopStream();
       router.push(`/submission/${sub.id}`);
     } catch (e) {

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useBalance, useChainId, useConnection } from "wagmi";
 import { onDataChange } from "./api";
+import { IS_LIVE } from "./config";
 import { monadTestnet } from "./wagmi";
 
 /**
@@ -76,4 +77,14 @@ export function useWalletStatus() {
     wrongNetwork: isConnected && (connectedChainId ?? chainId) !== monadTestnet.id,
     onchainBalance: balance.data ? Number(balance.data.value) / 1e18 : null,
   };
+}
+
+/**
+ * Balance to show in the UI. Mock mode: the mock wallet balance. Live mode:
+ * the real on-chain MON balance of the connected wallet (falls back to mock).
+ */
+export function useDisplayBalance(mockBalance: number | null | undefined) {
+  const { onchainBalance } = useWalletStatus();
+  if (IS_LIVE && onchainBalance !== null) return onchainBalance;
+  return mockBalance ?? null;
 }

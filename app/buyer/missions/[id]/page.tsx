@@ -215,12 +215,14 @@ export default function BuyerMissionPage() {
         {/* Integrity */}
         <Card className="flex flex-col border-primary bg-primary p-5 text-white lg:self-start">
           <MonoLabel className="text-white/70">Dataset integrity</MonoLabel>
-          <p className="mt-2 text-3xl font-bold tracking-tight text-lemon">VERIFIED</p>
+          <p className="mt-2 text-3xl font-bold tracking-tight text-lemon">{data.merkleRoot ? "VERIFIED" : "BEKLİYOR"}</p>
           <p className="mt-2 text-sm text-white/80">
-            Kabul edilen her klibin hash&apos;i Monad&apos;a yazılır. Ham videolar zincir dışında kalır.
+            {data.merkleRoot
+              ? "Kabul edilen her klibin hash'i Monad'a yazılır. Ham videolar zincir dışında kalır."
+              : "Ödenen klipler birikince dataset manifesti ve merkle root oluşturulur."}
           </p>
           <div className="mt-4 rounded-xl bg-black/30 px-3 py-2.5 font-mono text-xs break-all">
-            merkle root {data.merkleRoot}
+            merkle root {data.merkleRoot || "—"}
           </div>
           <Button
             variant="lemon"

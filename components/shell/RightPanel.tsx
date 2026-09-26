@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { getMissions, getMyRegistrations, getWallet } from "@/lib/frontend/api";
-import { useApi } from "@/lib/frontend/hooks";
+import { useApi, useDisplayBalance } from "@/lib/frontend/hooks";
 import { formatMon } from "@/lib/frontend/utils";
 import { MonAmount } from "../MonAmount";
 import { NetworkPill } from "../NetworkPill";
@@ -16,6 +16,7 @@ export function RightPanel() {
   const router = useRouter();
   const [q, setQ] = useState("");
   const wallet = useApi(getWallet);
+  const balance = useDisplayBalance(wallet.data?.balanceMon);
   const regs = useApi(getMyRegistrations);
   const missions = useApi(() => getMissions());
   const topPaying = missions.data
@@ -51,7 +52,7 @@ export function RightPanel() {
             <Skeleton className="mt-3 h-9 w-40 bg-white/20" />
           ) : (
             <>
-              <MonAmount value={wallet.data.balanceMon} size="lg" className="mt-2 block" />
+              <MonAmount value={balance ?? 0} size="lg" className="mt-2 block" />
               <p className="mt-1 text-xs text-white/80">
                 Bu hafta +{formatMon(wallet.data.earnedWeekMon)} · {wallet.data.accepted} kabul
               </p>

@@ -1,5 +1,9 @@
 // In-memory mock backend state, persisted to localStorage so the demo survives
 // reloads. Only lib/frontend/api.ts should import this.
+//
+// In live mode (NEXT_PUBLIC_DATA_SOURCE=live) it starts empty and only holds
+// what the API cannot answer yet: registrations, saves and "my submissions".
+import { IS_LIVE } from "@/lib/frontend/config";
 import type { VerifyResult } from "@/lib/frontend/types";
 import { seededHex } from "@/lib/frontend/utils";
 import { SEED_MISSIONS, type MockMission } from "./missions";
@@ -17,6 +21,10 @@ export interface MockSubmission {
   aiScore: number | null;
   txHash: string;
   rejectReason?: string;
+  /** Extra status text, e.g. payout queued or verification service down. */
+  note?: string;
+  /** Created through the real API; resolved by the pipeline, not by the mock timer. */
+  live?: boolean;
 }
 
 export interface MockState {
@@ -31,7 +39,7 @@ export interface MockState {
 
 export const DEMO_USER_ADDRESS = "0x7a3F9c21D4e8B05a6c1E2f3d9B8A7c6D5e4F3a21";
 
-const STORAGE_KEY = "dbforge-mock-v1";
+const STORAGE_KEY = IS_LIVE ? "dbforge-live-v1" : "dbforge-mock-v1";
 const past = (h: number) => Date.now() - h * 3600_000;
 
 function seedSubmission(
@@ -57,6 +65,17 @@ function seedSubmission(
 }
 
 function initialState(): MockState {
+  if (IS_LIVE) {
+    return {
+      createdMissions: [],
+      registered: [],
+      saved: [],
+      submissions: [],
+      acceptedDelta: {},
+      registeredDelta: {},
+      baseBalanceMon: 0,
+    };
+  }
   return {
     createdMissions: [],
     registered: ["m3", "m5"],

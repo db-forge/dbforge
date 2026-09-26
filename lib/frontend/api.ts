@@ -1,6 +1,10 @@
 // Frontend data access layer. UI talks ONLY to these functions.
-// Right now everything is served from lib/mock; later each function can be
-// swapped for a fetch() to app/api/* without touching components.
+//
+// Two sources behind the same functions (see ./config.ts):
+// - mock (default): everything from lib/mock, works offline for demos.
+// - live: missions, uploads, verification, settlement and datasets come from
+//   app/api/* (./live.ts). Registrations, saves and the user's own submission
+//   list stay local because the API has no endpoints for them yet.
 import {
   allMissions,
   DEMO_USER_ADDRESS,
@@ -22,6 +26,8 @@ import type {
   VerifyResult,
   WalletSummary,
 } from "./types";
+import { IS_LIVE } from "./config";
+import * as live from "./live";
 import { randomHex, seededHex, sleep } from "./utils";
 
 const LATENCY = 250;
@@ -60,12 +66,30 @@ function toPost(m: MockMission): MissionPost {
   };
 }
 
+// Live missions fetched from GET /api/missions, cached for synchronous lookups.
+let liveMissions: MockMission[] = [];
+let liveLoaded = false;
+
+function missionPool(): MockMission[] {
+  return IS_LIVE ? [...getState().createdMissions, ...liveMissions] : allMissions();
+}
+
+/** Mock: fake latency. Live: (re)load missions from the API. */
+async function loadMissions(fresh = true) {
+  if (!IS_LIVE) return sleep(LATENCY);
+  if (fresh || !liveLoaded) {
+    liveMissions = await live.fetchMissions();
+    liveLoaded = true;
+  }
+}
+
 function findMission(id: string) {
-  return allMissions().find((m) => m.id === id);
+  return missionPool().find((m) => m.id === id);
 }
 
 function resolveSubmission(sub: MockSubmission) {
-  if (sub.result !== null || Date.now() < sub.verifyAt) return;
+  // Live submissions are resolved by live.runPipeline, not by this timer.
+  if (sub.live || sub.result !== null || Date.now() < sub.verifyAt) return;
   const name = sub.fileName.toLowerCase();
   let result: VerifyResult = "accepted";
   if (name.includes("fail")) result = "rejected";
@@ -115,15 +139,16 @@ function toSubmissionView(sub: MockSubmission): SubmissionView {
     aiScore: sub.aiScore,
     result: sub.result,
     rejectReason: sub.rejectReason,
+    note: sub.note,
   };
 }
 
 // ---------- missions ----------
 
 export async function getMissions(filter: MissionFilter = {}): Promise<MissionPost[]> {
-  await sleep(LATENCY);
+  await loadMissions();
   const q = filter.query?.trim().toLocaleLowerCase("tr");
-  return allMissions()
+  return missionPool()
     .map(toPost)
     .filter((m) => !filter.category || filter.category === "all" || m.category === filter.category)
     .filter(
@@ -136,14 +161,22 @@ export async function getMissions(filter: MissionFilter = {}): Promise<MissionPo
 }
 
 export async function getMission(id: string): Promise<MissionPost | null> {
-  await sleep(LATENCY);
+  if (!IS_LIVE) await sleep(LATENCY);
+  else if (!getState().createdMissions.some((m) => m.id === id)) {
+    const fresh = await live.fetchMission(id);
+    liveMissions = [...liveMissions.filter((m) => m.id !== id), ...(fresh ? [fresh] : [])];
+  }
   const m = findMission(id);
   return m ? toPost(m) : null;
 }
 
+async function ensureMission(id: string) {
+  return findMission(id) ?? (IS_LIVE ? ((await getMission(id)) ?? undefined) : undefined);
+}
+
 export async function registerMission(id: string): Promise<MissionPost> {
-  await sleep(150);
-  const m = findMission(id);
+  if (!IS_LIVE) await sleep(150);
+  const m = await ensureMission(id);
   if (!m) throw new Error("Görev bulunamadı");
   mutate((s) => {
     if (s.registered.includes(id)) return;
@@ -162,27 +195,54 @@ export async function toggleSave(id: string): Promise<boolean> {
   return saved;
 }
 
-export async function getTopPayers(): Promise<{ company: Company; paidMon: number; missions: number }[]> {
-  await sleep(LATENCY);
-  const map = new Map<string, { company: Company; paidMon: number; missions: number }>();
-  for (const m of allMissions().map(toPost)) {
-    const row = map.get(m.company.handle) ?? { company: m.company, paidMon: 0, missions: 0 };
-    row.paidMon += m.acceptedCount * m.rewardMon;
-    row.missions += 1;
-    map.set(m.company.handle, row);
-  }
-  return [...map.values()].sort((a, b) => b.paidMon - a.paidMon);
-}
-
 // ---------- submissions ----------
 
-export async function uploadSubmission(missionId: string, file: File): Promise<SubmissionView> {
-  await sleep(600);
-  const m = findMission(missionId);
+/**
+ * Uploads a video for a mission. In live mode the contributor's wallet address
+ * is required (payouts go there); the verification pipeline then runs in the
+ * background and the submission page follows it via getSubmission.
+ */
+export async function uploadSubmission(
+  missionId: string,
+  file: File,
+  contributorAddress?: string,
+): Promise<SubmissionView> {
+  if (!IS_LIVE) await sleep(600);
+  const m = await ensureMission(missionId);
   if (!m) throw new Error("Görev bulunamadı");
   const post = toPost(m);
   if (post.status === "completed") throw new Error("Bu görev tamamlandı");
   if (post.myUploads >= post.perUserLimit) throw new Error("Bu görev için yükleme limitine ulaştın");
+
+  if (IS_LIVE) {
+    if (!contributorAddress) throw new Error("Ödeme alabilmek için önce cüzdanını bağla");
+    const uploaded = await live.uploadMedia(missionId, contributorAddress, file);
+    const sub: MockSubmission = {
+      id: uploaded.id,
+      missionId,
+      contributorAddress,
+      fileName: file.name,
+      previewUrl: URL.createObjectURL(file),
+      mediaHash: uploaded.mediaHash,
+      createdAt: uploaded.createdAt,
+      verifyAt: 0,
+      result: null,
+      aiScore: null,
+      txHash: "",
+      live: true,
+    };
+    mutate((s) => {
+      if (!s.registered.includes(missionId)) s.registered.push(missionId);
+      s.submissions.unshift(sub);
+    });
+    void live.runPipeline(sub.id, (patch) =>
+      mutate((s) => {
+        const target = s.submissions.find((x) => x.id === sub.id);
+        if (target) Object.assign(target, patch);
+      }),
+    );
+    return toSubmissionView(sub);
+  }
 
   const sub: MockSubmission = {
     id: `s-${Date.now().toString(36)}`,
@@ -208,15 +268,37 @@ export async function uploadSubmission(missionId: string, file: File): Promise<S
 }
 
 export async function getSubmission(id: string): Promise<SubmissionView | null> {
-  await sleep(100);
+  if (!IS_LIVE) await sleep(100);
   const sub = getState().submissions.find((x) => x.id === id);
-  if (!sub) return null;
+  if (!sub) return IS_LIVE ? getRemoteSubmission(id) : null;
   resolveSubmission(sub);
   return toSubmissionView(getState().submissions.find((x) => x.id === id)!);
 }
 
+/** A submission that isn't in this browser's list (e.g. opened from a link). */
+async function getRemoteSubmission(id: string): Promise<SubmissionView | null> {
+  const dto = await live.fetchSubmission(id);
+  if (!dto) return null;
+  await ensureMission(dto.missionId);
+  const previewUrl = (await live.fetchMediaUrl(id)) ?? dto.mediaUrl ?? "";
+  return toSubmissionView({
+    id: dto.id,
+    missionId: dto.missionId,
+    contributorAddress: dto.contributorAddress,
+    fileName: dto.mediaPath?.split("/").pop() ?? "video",
+    previewUrl,
+    mediaHash: dto.mediaHash ?? "",
+    createdAt: dto.createdAt,
+    verifyAt: 0,
+    result: live.resultFromStatus(dto.status),
+    aiScore: dto.confidence,
+    txHash: dto.txHash ?? "",
+    live: true,
+  });
+}
+
 export async function getMySubmissions(missionId?: string): Promise<SubmissionView[]> {
-  await sleep(LATENCY);
+  await loadMissions(false);
   const subs = getState().submissions.filter((x) => !missionId || x.missionId === missionId);
   subs.forEach(resolveSubmission);
   return getState()
@@ -225,9 +307,9 @@ export async function getMySubmissions(missionId?: string): Promise<SubmissionVi
 }
 
 export async function getMyRegistrations(): Promise<RegistrationGroups> {
-  await sleep(LATENCY);
+  await loadMissions(false);
   getState().submissions.forEach(resolveSubmission);
-  const posts = allMissions().map(toPost);
+  const posts = missionPool().map(toPost);
   const isDone = (m: MissionPost) => m.status === "completed" || m.myUploads >= m.perUserLimit;
   return {
     active: posts.filter((m) => m.isRegistered && !isDone(m)),
@@ -239,7 +321,7 @@ export async function getMyRegistrations(): Promise<RegistrationGroups> {
 // ---------- wallet ----------
 
 export async function getWallet(): Promise<WalletSummary> {
-  await sleep(LATENCY);
+  await loadMissions(false);
   const s = getState();
   s.submissions.forEach(resolveSubmission);
   const subs = getState().submissions.map(toSubmissionView);
@@ -300,13 +382,12 @@ export async function createMission(data: CreateMissionInput): Promise<MissionPo
 }
 
 export async function getBuyerMissions(): Promise<MissionPost[]> {
-  await sleep(LATENCY);
-  return allMissions().map(toPost);
+  await loadMissions();
+  return missionPool().map(toPost);
 }
 
 export async function getBuyerMission(id: string): Promise<BuyerMissionView | null> {
-  await sleep(LATENCY);
-  const m = findMission(id);
+  const m = IS_LIVE ? await ensureMission(id) : (await sleep(LATENCY), findMission(id));
   if (!m) return null;
   getState().submissions.forEach(resolveSubmission);
   const post = toPost(m);
@@ -323,6 +404,24 @@ export async function getBuyerMission(id: string): Promise<BuyerMissionView | nu
       txHash: x.txHash || null,
       createdAt: x.createdAt,
     }));
+
+  if (IS_LIVE) {
+    // No list endpoint yet (GET /api/submissions is 501): show only the
+    // submissions this browser knows about, plus the real dataset summary.
+    const dataset = await live.fetchDataset(id).catch(() => null);
+    const scored = mine.filter((x) => x.aiScore > 0);
+    return {
+      mission: post,
+      spentMon: post.acceptedCount * post.rewardMon,
+      budgetMon: post.targetCount * post.rewardMon,
+      accepted: post.acceptedCount,
+      rejected: mine.filter((x) => x.status === "rejected").length,
+      reviewing: mine.filter((x) => x.status === "review").length,
+      avgQuality: scored.length ? scored.reduce((n, x) => n + x.aiScore, 0) / scored.length : 0,
+      merkleRoot: dataset?.merkleRoot ?? "",
+      submissions: mine,
+    };
+  }
 
   const seededCount = Math.min(12, post.acceptedCount);
   const seeded: BuyerSubmissionRow[] = Array.from({ length: seededCount }, (_, i) => {

@@ -50,6 +50,7 @@ export interface SubmissionView extends Submission {
   aiScore: number | null;
   result: VerifyResult | null;
   rejectReason?: string;
+  note?: string;
 }
 
 export interface MissionFilter {

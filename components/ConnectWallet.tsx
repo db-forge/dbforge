@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useConnect, useDisconnect, useSwitchChain } from "wagmi";
 import { getWallet } from "@/lib/frontend/api";
-import { useApi, useIsClient, useWalletStatus } from "@/lib/frontend/hooks";
+import { useApi, useDisplayBalance, useIsClient, useWalletStatus } from "@/lib/frontend/hooks";
 import { cn, formatMon, shortAddr } from "@/lib/frontend/utils";
 import { monadTestnet } from "@/lib/frontend/wagmi";
 import { Button } from "./ui/button";
@@ -57,6 +57,7 @@ export function ConnectWallet({ compact = false, label }: { compact?: boolean; l
   const { switchToMonad, isPending: switching } = useSwitchToMonad();
   const { mutate: disconnect } = useDisconnect();
   const { data: wallet } = useApi(getWallet);
+  const displayBalance = useDisplayBalance(wallet?.balanceMon);
   const [open, setOpen] = useState(false);
   const mounted = useIsClient();
   const ref = useRef<HTMLDivElement>(null);
@@ -97,7 +98,7 @@ export function ConnectWallet({ compact = false, label }: { compact?: boolean; l
     );
   }
 
-  const balance = wallet ? formatMon(wallet.balanceMon) : "…";
+  const balance = displayBalance !== null ? formatMon(displayBalance) : "…";
 
   return (
     <div ref={ref} className="relative shrink-0">

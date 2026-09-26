@@ -11,7 +11,7 @@ import { useToast } from "@/components/Toaster";
 import { LinkButton } from "@/components/ui/button";
 import { MonoLabel, Skeleton } from "@/components/ui/card";
 import { getMission, getMissions, getSubmission, getWallet } from "@/lib/frontend/api";
-import { useApi } from "@/lib/frontend/hooks";
+import { useApi, useDisplayBalance } from "@/lib/frontend/hooks";
 import type { SubmissionView } from "@/lib/frontend/types";
 import { cn, formatMon, shortAddr, txUrl } from "@/lib/frontend/utils";
 
@@ -38,6 +38,7 @@ export default function SubmissionPage() {
   const toasted = useRef(false);
   const { data: missions } = useApi(() => getMissions());
   const { data: wallet } = useApi(getWallet);
+  const balance = useDisplayBalance(wallet?.balanceMon);
   const missionId = sub?.missionId ?? "";
   const { data: mission } = useApi(() => (missionId ? getMission(missionId) : Promise.resolve(null)), [missionId]);
 
@@ -162,16 +163,22 @@ export default function SubmissionPage() {
                 <MonAmount value={sub.rewardMon} sign size="xl" className="mt-2 text-6xl sm:text-7xl" />
                 <p className="mt-3 text-ink/75">
                   <span className="font-mono">{shortAddr(sub.contributorAddress, 4, 4)}</span> adresine Monad
-                  üzerinden ödendi
+                  üzerinden {sub.txHash ? "ödendi" : "ödenecek"}
                 </p>
-                <a
-                  href={txUrl(sub.txHash)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-4 inline-flex h-9 items-center rounded-xl border-[1.5px] border-line bg-surface px-3.5 font-mono text-xs hover:border-primary hover:text-accent"
-                >
-                  tx {shortAddr(sub.txHash, 6, 4)} · {settleSec(sub.txHash)} sn
-                </a>
+                {sub.txHash ? (
+                  <a
+                    href={txUrl(sub.txHash)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-4 inline-flex h-9 items-center rounded-xl border-[1.5px] border-line bg-surface px-3.5 font-mono text-xs hover:border-primary hover:text-accent"
+                  >
+                    tx {shortAddr(sub.txHash, 6, 4)} · {settleSec(sub.txHash)} sn
+                  </a>
+                ) : (
+                  <p className="mt-4 max-w-sm rounded-xl border-[1.5px] border-warning/50 bg-warning/15 px-4 py-2 text-sm">
+                    {sub.note ?? "Ödeme sıraya alındı."}
+                  </p>
+                )}
               </>
             )}
 
@@ -189,8 +196,12 @@ export default function SubmissionPage() {
               <>
                 <p className="mt-2 text-2xl font-bold">Manuel incelemeye alındı</p>
                 <p className="mt-2 max-w-sm rounded-xl border-[1.5px] border-warning/50 bg-warning/15 px-4 py-3 text-sm text-ink/80">
-                  AI skoru kabul eşiğine yakın. Moderatör onaylarsa{" "}
-                  <b className="text-lemon">{formatMon(sub.rewardMon)} MON</b> otomatik gönderilir.
+                  {sub.note ?? (
+                    <>
+                      AI skoru kabul eşiğine yakın. Moderatör onaylarsa{" "}
+                      <b className="text-lemon">{formatMon(sub.rewardMon)} MON</b> otomatik gönderilir.
+                    </>
+                  )}
                 </p>
               </>
             )}
@@ -200,7 +211,7 @@ export default function SubmissionPage() {
             {accepted && (
               <div className="flex items-center justify-between rounded-2xl border-[1.5px] border-line bg-surface px-4 py-3">
                 <span>Bakiye</span>
-                {wallet ? <MonAmount value={wallet.balanceMon} size="sm" /> : <Skeleton className="h-5 w-20" />}
+                {balance !== null ? <MonAmount value={balance} size="sm" /> : <Skeleton className="h-5 w-20" />}
               </div>
             )}
             {rejected ? (
@@ -212,7 +223,7 @@ export default function SubmissionPage() {
                 Sonraki görev
               </LinkButton>
             )}
-            {accepted ? (
+            {accepted && sub.txHash ? (
               <a
                 href={txUrl(sub.txHash)}
                 target="_blank"
