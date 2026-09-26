@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useId, type ReactNode } from "react";
 import { useLocale } from "@/components/I18nProvider";
 import { Logo } from "@/components/shell/Logo";
@@ -30,9 +29,10 @@ export function AuthFrame({
   return (
     <main className="flex min-h-dvh flex-col items-center bg-bg px-4 py-8 sm:justify-center">
       <div className="w-full max-w-md">
-        <Link href="/" className="mb-6 inline-flex" aria-label="DBForge">
+        {/* Logo already links to "/"; wrapping it in another Link nests <a> tags. */}
+        <div className="mb-6 inline-flex">
           <Logo />
-        </Link>
+        </div>
         <Card className="p-5 sm:p-7">
           <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
           {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
