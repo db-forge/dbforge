@@ -27,9 +27,8 @@ Total sent out: 5 + 1 + 5 + 1 = 12 MON. Buyer keeps ~38 MON, enough for several 
 ### 1. Admin keystore (Developer 2, your machine, Git Bash)
 
 ```sh
-cast wallet new                                  # prints a new address + private key — do not paste it anywhere
-cast wallet import dbforge-admin --interactive   # paste the private key, choose a password
-cast wallet address --account dbforge-admin      # note the address
+cast wallet new dbforge-admin                    # asks for a password; the key is written encrypted, never printed
+cast wallet address --account dbforge-admin      # shows the address again at any time
 ```
 
 The keystore file is in `~/.foundry/keystores/`. It is encrypted and never goes into the repo.
