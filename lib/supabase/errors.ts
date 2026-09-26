@@ -65,3 +65,58 @@ export class DatasetImmutableError extends Error {
     this.name = "DatasetImmutableError";
   }
 }
+
+export class AuthRequiredError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AuthRequiredError";
+  }
+}
+
+export class InvalidCredentialsError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidCredentialsError";
+  }
+}
+
+export class EmailAlreadyRegisteredError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "EmailAlreadyRegisteredError";
+  }
+}
+
+export class RoleForbiddenError extends Error {
+  constructor(
+    message: string,
+    readonly requiredRole: "contributor" | "company",
+  ) {
+    super(message);
+    this.name = "RoleForbiddenError";
+  }
+}
+
+export class ProfileNotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ProfileNotFoundError";
+  }
+}
+
+export class AuthValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AuthValidationError";
+  }
+}
+
+export class AuthProviderError extends Error {
+  constructor(
+    message: string,
+    readonly cause?: unknown,
+  ) {
+    super(message);
+    this.name = "AuthProviderError";
+  }
+}

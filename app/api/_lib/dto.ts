@@ -10,6 +10,8 @@ import type {
   SettlementRow,
   SubmissionRow,
 } from "@/lib/supabase/types";
+import type { ProfileRow } from "@/lib/supabase/profiles";
+import type { AuthenticatedUser } from "@/lib/supabase/authGuards";
 import type { CheckResult, FailureCode, VerificationOutcome } from "@/lib/verification/types";
 import type { CriterionEvidence } from "@/lib/verification/ai/types";
 import type { SemanticDecision } from "@/lib/verification/decision";
@@ -284,5 +286,34 @@ export function toUploadedSubmissionDto(row: SubmissionRow): UploadedSubmissionD
     sizeBytes: row.size_bytes ?? 0,
     status: row.status,
     createdAt: row.created_at,
+  };
+}
+
+// Auth layer DTOs (app/api/auth/*). Never include tokens/session
+// internals — the session lives only in httpOnly cookies.
+export interface AuthUserDto {
+  id: string;
+  email: string | null;
+}
+
+export interface ProfileDto {
+  id: string;
+  role: ProfileRow["role"];
+  displayName: string | null;
+  companyName: string | null;
+  walletAddress: string | null;
+}
+
+export function toAuthUserDto(user: AuthenticatedUser): AuthUserDto {
+  return { id: user.id, email: user.email };
+}
+
+export function toProfileDto(row: ProfileRow): ProfileDto {
+  return {
+    id: row.id,
+    role: row.role,
+    displayName: row.display_name,
+    companyName: row.company_name,
+    walletAddress: row.wallet_address,
   };
 }

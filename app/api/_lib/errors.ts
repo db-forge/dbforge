@@ -6,15 +6,24 @@ import { NextResponse } from "next/server";
 import { SupabaseConfigError } from "@/lib/supabase/client";
 import { StorageError } from "@/lib/supabase/storage";
 import {
+  AuthProviderError,
+  AuthRequiredError,
+  AuthValidationError,
   ConflictError,
   DatasetImmutableError,
   DeterministicVerificationRequiredError,
   DuplicateSubmissionError,
+  EmailAlreadyRegisteredError,
+  InvalidCredentialsError,
   NotFoundError,
+  ProfileNotFoundError,
+  RoleForbiddenError,
   SettlementInconsistentStateError,
   SubmissionFinalizedError,
   SubmissionNotAcceptedError,
 } from "@/lib/supabase/errors";
+import { SupabaseAuthConfigError } from "@/lib/supabase/auth";
+import { WalletAddressAlreadyLinkedError } from "@/lib/supabase/profiles";
 import { VisionProviderError } from "@/lib/verification/ai/types";
 import { FfmpegUnavailableError, FrameExtractionError } from "@/lib/verification/video";
 import { SettlementGatewayError } from "@/lib/verification/settlement/types";
@@ -82,7 +91,15 @@ export type ApiErrorCode =
   // Integration correction: POST /api/contributors/[address]/withdraw
   | "WITHDRAWAL_RATE_LIMITED"
   | "WITHDRAWAL_GATEWAY_UNAVAILABLE"
-  | "WITHDRAWAL_FAILED";
+  | "WITHDRAWAL_FAILED"
+  // Auth layer (POST /api/auth/*)
+  | "AUTH_REQUIRED"
+  | "INVALID_CREDENTIALS"
+  | "EMAIL_ALREADY_REGISTERED"
+  | "ROLE_FORBIDDEN"
+  | "PROFILE_NOT_FOUND"
+  | "INVALID_ROLE"
+  | "AUTH_PROVIDER_ERROR";
 
 export class ApiError extends Error {
   readonly status: number;
@@ -284,6 +301,34 @@ export class ApiError extends Error {
   static withdrawalFailed(message: string): ApiError {
     return new ApiError(502, "WITHDRAWAL_FAILED", message);
   }
+
+  static authRequired(message = "Authentication required."): ApiError {
+    return new ApiError(401, "AUTH_REQUIRED", message);
+  }
+
+  static invalidCredentials(message = "Invalid email or password."): ApiError {
+    return new ApiError(401, "INVALID_CREDENTIALS", message);
+  }
+
+  static emailAlreadyRegistered(message: string): ApiError {
+    return new ApiError(409, "EMAIL_ALREADY_REGISTERED", message);
+  }
+
+  static roleForbidden(message: string): ApiError {
+    return new ApiError(403, "ROLE_FORBIDDEN", message);
+  }
+
+  static profileNotFound(message: string): ApiError {
+    return new ApiError(404, "PROFILE_NOT_FOUND", message);
+  }
+
+  static invalidRole(message: string): ApiError {
+    return new ApiError(400, "INVALID_ROLE", message);
+  }
+
+  static authProviderError(message = "The authentication provider is currently unavailable."): ApiError {
+    return new ApiError(502, "AUTH_PROVIDER_ERROR", message);
+  }
 }
 
 export function apiErrorResponse(error: ApiError): NextResponse {
@@ -364,6 +409,44 @@ export function withApiErrorHandling(
 
     if (error instanceof DatasetImmutableError) {
       return apiErrorResponse(ApiError.datasetImmutable(error.message));
+    }
+
+    if (error instanceof AuthRequiredError) {
+      return apiErrorResponse(ApiError.authRequired(error.message));
+    }
+
+    if (error instanceof AuthValidationError) {
+      return apiErrorResponse(ApiError.validation(error.message));
+    }
+
+    if (error instanceof InvalidCredentialsError) {
+      return apiErrorResponse(ApiError.invalidCredentials(error.message));
+    }
+
+    if (error instanceof EmailAlreadyRegisteredError) {
+      return apiErrorResponse(ApiError.emailAlreadyRegistered(error.message));
+    }
+
+    if (error instanceof RoleForbiddenError) {
+      return apiErrorResponse(ApiError.roleForbidden(error.message));
+    }
+
+    if (error instanceof ProfileNotFoundError) {
+      return apiErrorResponse(ApiError.profileNotFound(error.message));
+    }
+
+    if (error instanceof WalletAddressAlreadyLinkedError) {
+      return apiErrorResponse(ApiError.conflict(error.message));
+    }
+
+    if (error instanceof AuthProviderError) {
+      console.error("Auth provider error:", error.cause ?? error);
+      return apiErrorResponse(ApiError.authProviderError());
+    }
+
+    if (error instanceof SupabaseAuthConfigError) {
+      console.error("Supabase auth config error:", error.message);
+      return apiErrorResponse(new ApiError(500, "CONFIG_ERROR", error.message));
     }
 
     if (error instanceof SettlementStatusGatewayError) {

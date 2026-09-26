@@ -1,18 +1,23 @@
 // Owner: Developer 3 (app/api, lib/verification, lib/supabase, supabase/)
 //
-// POST /api/contributors/[address]/withdraw — integration correction.
-// The verifier (our backend) pays gas for withdrawForContributor, so this
-// must never be trivially spammable: balance is checked first (free read;
-// a zero balance exits before any rate-limit budget or gas is spent), then
-// a DB-backed cooldown is enforced per contributor address (and per IP,
-// when derivable) before the one paid, fund-moving call. The gateway
-// interface takes only contributorAddress — there is no recipient
-// parameter anywhere in this file, so a caller can never redirect funds.
+// POST /api/contributors/[address]/withdraw — integration correction, now
+// also auth-gated. The verifier (our backend) pays gas for
+// withdrawForContributor, so this must never be trivially spammable OR
+// callable on someone else's behalf: the caller must be authenticated as
+// a contributor, AND the path address must match THAT account's own
+// linked wallet (never trust the path param alone as identity) — then
+// balance is checked first (free read; a zero balance exits before any
+// rate-limit budget or gas is spent), then a DB-backed cooldown is
+// enforced per contributor address (and per IP, when derivable) before
+// the one paid, fund-moving call. The gateway interface takes only
+// contributorAddress — there is no recipient parameter anywhere in this
+// file, so a caller can never redirect funds.
 
 import { NextResponse } from "next/server";
 import { ApiError, withApiErrorHandling } from "@/app/api/_lib/errors";
 import { EVM_ADDRESS_RE } from "@/app/api/_lib/validation";
 import { enforceRateLimit } from "@/lib/supabase/rateLimit";
+import { requireContributor } from "@/lib/supabase/authGuards";
 import { getWithdrawalGateway } from "@/lib/verification/withdrawal/gateway";
 
 const CONTRIBUTOR_WINDOW_SECONDS = 60;
@@ -42,6 +47,11 @@ export async function POST(request: Request, { params }: RouteParams) {
       });
     }
     const contributorAddress = address.toLowerCase();
+
+    const { profile } = await requireContributor();
+    if (profile.wallet_address?.toLowerCase() !== contributorAddress) {
+      throw ApiError.roleForbidden("You may only withdraw to your own linked wallet address.");
+    }
 
     const gateway = getWithdrawalGateway();
 

@@ -17,6 +17,7 @@ import {
 } from "@/app/api/_lib/validation";
 import { toMissionDto } from "@/app/api/_lib/dto";
 import { createMissionFromChainEvent, listMissions } from "@/lib/supabase/missions";
+import { requireCompany } from "@/lib/supabase/authGuards";
 import { getMissionEventReader } from "@/lib/verification/mission/eventReader";
 import { weiToDecimalMon } from "@/lib/verification/settlement/money";
 
@@ -39,6 +40,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   return withApiErrorHandling(async () => {
+    // Who is allowed to register a mission at all — never who the mission
+    // belongs to on chain (that's the verified event's `buyer`, below).
+    const { profile } = await requireCompany();
+
     const body = await parseJsonBody(request);
 
     const txHash = requireString(body, "txHash");
@@ -58,6 +63,16 @@ export async function POST(request: NextRequest) {
     if (event === null) {
       // No receipt yet — not an error. The client should retry shortly.
       return NextResponse.json({ code: "PENDING", message: "Transaction not yet mined." }, { status: 202 });
+    }
+
+    // If this company account has a linked wallet, it must be the one that
+    // actually created the mission on chain — "wallet address may be
+    // checked against authenticated profile where relevant" (only when we
+    // actually have something to check against).
+    if (profile.wallet_address && profile.wallet_address.toLowerCase() !== event.buyerAddress.toLowerCase()) {
+      throw ApiError.roleForbidden(
+        "This mission's on-chain buyer address does not match your account's linked wallet.",
+      );
     }
 
     const { mission, created } = await createMissionFromChainEvent({

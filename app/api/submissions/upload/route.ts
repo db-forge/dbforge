@@ -12,13 +12,13 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { ApiError, withApiErrorHandling } from "@/app/api/_lib/errors";
 import {
-  EVM_ADDRESS_RE,
   UUID_RE,
   requireFormFile,
   requireFormString,
 } from "@/app/api/_lib/validation";
 import { toUploadedSubmissionDto } from "@/app/api/_lib/dto";
 import { getMissionById } from "@/lib/supabase/missions";
+import { requireContributor } from "@/lib/supabase/authGuards";
 import {
   createUploadedSubmission,
   findSubmissionByMissionAndHash,
@@ -46,19 +46,23 @@ async function parseMultipartForm(request: Request): Promise<FormData> {
 
 export async function POST(request: Request) {
   return withApiErrorHandling(async () => {
+    // Binds this submission to the AUTHENTICATED contributor — never a
+    // client-supplied contributorAddress field. A contributor with no
+    // wallet linked yet cannot submit (nothing to attribute the
+    // submission/settlement to).
+    const { profile } = await requireContributor();
+    if (!profile.wallet_address) {
+      throw ApiError.conflict(
+        "Link a wallet address to your contributor profile before submitting.",
+      );
+    }
+    const contributorAddress = profile.wallet_address;
+
     const form = await parseMultipartForm(request);
 
     const missionId = requireFormString(form, "missionId");
     if (!UUID_RE.test(missionId)) {
       throw ApiError.invalidInput("missionId must be a valid UUID.", { field: "missionId" });
-    }
-
-    const contributorAddress = requireFormString(form, "contributorAddress");
-    if (!EVM_ADDRESS_RE.test(contributorAddress)) {
-      throw ApiError.invalidInput(
-        "contributorAddress must be a valid 0x-prefixed EVM address.",
-        { field: "contributorAddress" },
-      );
     }
 
     const mediaFile = requireFormFile(form, "media");

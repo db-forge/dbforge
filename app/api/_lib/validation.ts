@@ -144,6 +144,42 @@ export function requireEvmAddress(
   return value;
 }
 
+export function optionalEvmAddress(
+  body: Record<string, unknown>,
+  field: string,
+): string | null {
+  const value = optionalString(body, field);
+  if (value === null) return null;
+  if (!EVM_ADDRESS_RE.test(value)) {
+    throw ApiError.validation(`${field} must be a valid 0x-prefixed EVM address.`, {
+      field,
+    });
+  }
+  return value;
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MIN_PASSWORD_LENGTH = 8;
+
+export function requireEmail(body: Record<string, unknown>, field = "email"): string {
+  const value = requireString(body, field);
+  if (!EMAIL_RE.test(value)) {
+    throw ApiError.validation(`${field} must be a valid email address.`, { field });
+  }
+  return value.toLowerCase();
+}
+
+export function requirePassword(body: Record<string, unknown>, field = "password"): string {
+  const value = body[field];
+  if (typeof value !== "string" || value.length < MIN_PASSWORD_LENGTH) {
+    throw ApiError.validation(
+      `${field} is required and must be at least ${MIN_PASSWORD_LENGTH} characters.`,
+      { field },
+    );
+  }
+  return value;
+}
+
 export function requireFormString(form: FormData, field: string): string {
   const value = form.get(field);
   if (typeof value !== "string" || value.trim().length === 0) {
