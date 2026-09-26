@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useConnect, useDisconnect, useSwitchChain } from "wagmi";
 import { getWallet } from "@/lib/frontend/api";
-import { useApi, useWalletStatus } from "@/lib/frontend/hooks";
+import { useApi, useIsClient, useWalletStatus } from "@/lib/frontend/hooks";
 import { cn, formatMon, shortAddr } from "@/lib/frontend/utils";
 import { monadTestnet } from "@/lib/frontend/wagmi";
 import { Button } from "./ui/button";
@@ -54,10 +54,9 @@ export function ConnectWallet({ compact = false }: { compact?: boolean }) {
   const { mutate: disconnect } = useDisconnect();
   const { data: wallet } = useApi(getWallet);
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useIsClient();
   const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(() => setMounted(true), []);
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {

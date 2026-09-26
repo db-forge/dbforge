@@ -3,9 +3,8 @@
 import { Upload } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
 import { getMyRegistrations } from "@/lib/frontend/api";
-import { useApi, useWalletStatus } from "@/lib/frontend/hooks";
+import { useApi, useIsClient, useWalletStatus } from "@/lib/frontend/hooks";
 import { cn, shortAddr } from "@/lib/frontend/utils";
 import { Avatar } from "../Avatar";
 import { buttonClass } from "../ui/button";
@@ -23,8 +22,7 @@ export function SideNav() {
   const pathname = usePathname();
   const uploadHref = useUploadHref();
   const { address, isConnected } = useWalletStatus();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useIsClient();
 
   return (
     <aside className="sticky top-0 hidden h-dvh w-20 shrink-0 flex-col justify-between px-3 py-5 md:flex lg:w-64 lg:px-5">
